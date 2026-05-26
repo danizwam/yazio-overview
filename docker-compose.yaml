@@ -1,0 +1,9 @@
+services:
+  yazio-overview:
+    build: .
+    container_name: yazio-overview
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

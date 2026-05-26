@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yazio Overview</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="topbar">
+      <div>
+        <p class="eyebrow">Kalorientracker Export</p>
+        <h1>Yazio Overview</h1>
+      </div>
+      <div class="status-card" id="statusCard">
+        <span class="status-dot"></span>
+        <span id="statusText">Lade Status...</span>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <aside class="panel upload-panel">
+        <h2>Daten</h2>
+        <form id="uploadForm" class="upload-form">
+          <label>
+            <span>products.json</span>
+            <input type="file" name="products" accept="application/json,.json">
+          </label>
+          <label>
+            <span>days.json</span>
+            <input type="file" name="days" accept="application/json,.json">
+          </label>
+          <button type="submit">Upload speichern</button>
+        </form>
+        <dl class="meta-grid">
+          <div>
+            <dt>Produkte</dt>
+            <dd id="productCount">-</dd>
+          </div>
+          <div>
+            <dt>Tage</dt>
+            <dd id="dayCount">-</dd>
+          </div>
+          <div>
+            <dt>Zeitraum</dt>
+            <dd id="dateRange">-</dd>
+          </div>
+        </dl>
+      </aside>
+
+      <section class="panel controls-panel">
+        <div class="tabs" role="tablist">
+          <button class="tab active" type="button" data-mode="single">Ein Tag</button>
+          <button class="tab" type="button" data-mode="range">Datumsbereich</button>
+        </div>
+
+        <form id="singleForm" class="query-form">
+          <label>
+            <span>Datum</span>
+            <input id="singleDate" type="date" required>
+          </label>
+          <button type="submit">Tag anzeigen</button>
+        </form>
+        <div id="singleExports" class="export-actions">
+          <button type="button" data-export="xlsx" data-scope="single">Tag als Excel</button>
+          <button type="button" data-export="pdf" data-scope="single">Tag als PDF</button>
+        </div>
+
+        <form id="rangeForm" class="query-form hidden">
+          <label>
+            <span>Von</span>
+            <input id="fromDate" type="date" required>
+          </label>
+          <label>
+            <span>Bis</span>
+            <input id="toDate" type="date" required>
+          </label>
+          <button type="submit">Bereich anzeigen</button>
+        </form>
+        <div id="rangeExports" class="export-actions hidden">
+          <button type="button" data-export="xlsx" data-scope="range">Bereich als Excel</button>
+          <button type="button" data-export="pdf" data-scope="range">Bereich als PDF</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="message" class="message hidden"></section>
+    <section id="results" class="results"></section>
+  </main>
+
+  <template id="dayTemplate">
+    <article class="day-card">
+      <header class="day-header">
+        <div>
+          <p class="eyebrow">Tag</p>
+          <h2></h2>
+        </div>
+        <button type="button" class="copy-day">Tag kopieren</button>
+      </header>
+      <div class="macro-strip"></div>
+      <div class="meals"></div>
+    </article>
+  </template>
+
+  <template id="mealTemplate">
+    <section class="meal-card">
+      <header>
+        <h3></h3>
+        <button type="button" class="copy-meal">Mahlzeit kopieren</button>
+      </header>
+      <div class="meal-total"></div>
+      <div class="food-list"></div>
+    </section>
+  </template>
+
+  <script src="/app.js"></script>
+</body>
+</html>
