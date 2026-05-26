@@ -1,0 +1,96 @@
+{
+  "project": {
+    "name": "Yazio Overview",
+    "repository": "https://github.com/danizwam/yazio-overview.git",
+    "workspace": "C:/Users/daniz/OneDrive/Dokumente/Yazio-Overview",
+    "language": "Java 21",
+    "runtime": "Standalone Java HTTP server",
+    "docker": true
+  },
+  "sourceFiles": {
+    "productsJson": "C:/Users/daniz/Desktop/YazioExport/products.json",
+    "daysJson": "C:/Users/daniz/Desktop/YazioExport/days.json",
+    "storedUploads": "data/products.json and data/days.json"
+  },
+  "implementedFeatures": [
+    "Upload and persistent replacement of products.json and days.json",
+    "Parsing of products.json as product-id keyed object",
+    "Parsing of days.json as date keyed object",
+    "Linking consumed product entries to products by product_id",
+    "Support for consumed.simple_products, including AI generated meals",
+    "Single-day and date-range views",
+    "Copy day or meal summaries to clipboard with fallback",
+    "Excel export for one day or date range, one sheet per day",
+    "PDF export for one day or date range",
+    "Dockerfile and docker-compose.yaml"
+  ],
+  "exportLayout": {
+    "meals": [
+      "Frühstück",
+      "Mittagessen",
+      "Abendessen",
+      "Sonstiges"
+    ],
+    "columns": [
+      "Mahlzeit",
+      "gegessen wurde",
+      "getrunken wurde..."
+    ],
+    "headerFields": [
+      "Meine Tagesübersicht",
+      "Name",
+      "Geb. Datum",
+      "Datum",
+      "Wochentag"
+    ],
+    "footerFields": [
+      "Gesamt",
+      "Sport",
+      "Besonderheiten an diesem Tag"
+    ],
+    "drinkClassification": [
+      "base unit ml",
+      "serving contains bottle, can, cup, glass, drink",
+      "name contains drink, wasser, cola, red bull, coffee, kaffee"
+    ]
+  },
+  "importantFindings": [
+    {
+      "date": "2025-05-07",
+      "note": "The user initially referenced this date, but the problematic AI meals were actually on 2026-05-07."
+    },
+    {
+      "date": "2026-05-07",
+      "note": "AI generated lunch and dinner are stored in consumed.simple_products, not consumed.products. They must be treated as absolute macro entries."
+    }
+  ],
+  "localCommits": [
+    {
+      "hash": "2df472e",
+      "message": "Add Yazio overview export tool"
+    },
+    {
+      "hash": "f797edd",
+      "message": "Refine daily export header and wrapping"
+    }
+  ],
+  "verificationCommands": [
+    "javac -encoding UTF-8 -d out <all Java files>",
+    "GET /api/status",
+    "GET /api/day?date=2026-05-07",
+    "GET /api/export/xlsx?date=2026-05-07",
+    "GET /api/export/pdf?date=2026-05-07"
+  ],
+  "knownPreferences": [
+    "User prefers a web version.",
+    "User wants local commits as rollback points.",
+    "Pushing can be done by the user if needed; committing is the important part.",
+    "PDF should be portrait, not landscape.",
+    "Exports should resemble the provided manual Tagesübersicht screenshot."
+  ],
+  "openFollowUps": [
+    "Further visual refinement of Excel and PDF layout.",
+    "Potential tuning of drink classification if products are misclassified.",
+    "Potential additional fields for sport or notes if data source is defined."
+  ]
+}
