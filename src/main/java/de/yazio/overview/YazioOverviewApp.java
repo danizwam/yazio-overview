@@ -881,6 +881,15 @@ public class YazioOverviewApp {
         };
     }
 
+    private static String mealMacroBlock(MealReport meal) {
+        Macro total = meal.total();
+        return mealExportLabel(meal.key()) + "\n"
+                + format(total.energy) + " kcal\n"
+                + "KH " + format(total.carbs) + " g\n"
+                + "Protein " + format(total.protein) + " g\n"
+                + "Fett " + format(total.fat) + " g";
+    }
+
     private static Map<String, MealReport> exportMeals(List<MealReport> meals) {
         Map<String, MealReport> grouped = new LinkedHashMap<>();
         grouped.put("breakfast", new MealReport("breakfast"));
@@ -1042,13 +1051,14 @@ public class YazioOverviewApp {
             List<Row> rows = new ArrayList<>();
             rows.add(new Row(24, List.of(new Cell("Meine Tagesübersicht", 1), new Cell(""), new Cell(""))));
             rows.add(new Row(18, List.of(new Cell(""), new Cell(""), new Cell(""))));
-            rows.add(new Row(22, List.of(new Cell("Name: ____________________", 2), new Cell("Datum: " + report.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")), 2), new Cell("Wochentag: " + report.date().format(DateTimeFormatter.ofPattern("EEEE", Locale.GERMANY)), 2))));
+            rows.add(new Row(22, List.of(new Cell("Name: ____________________", 2), new Cell("Geb. Datum: ____________________", 2), new Cell(""))));
+            rows.add(new Row(22, List.of(new Cell("Datum: " + report.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")), 2), new Cell("Wochentag: " + report.date().format(DateTimeFormatter.ofPattern("EEEE", Locale.GERMANY)), 2), new Cell(""))));
             rows.add(new Row(14, List.of(new Cell(""), new Cell(""), new Cell(""))));
             rows.add(new Row(22, List.of(new Cell("Mahlzeit", 4), new Cell("gegessen wurde", 4), new Cell("getrunken wurde...", 4))));
 
             for (MealReport meal : exportMeals(report.meals()).values()) {
                 rows.add(new Row(86, List.of(
-                        new Cell(mealExportLabel(meal.key()) + "\n" + meal.total().inline(), 5),
+                        new Cell(mealMacroBlock(meal), 5),
                         new Cell(joinItems(meal, false), 7),
                         new Cell(joinItems(meal, true), 7)
                 )));
@@ -1227,6 +1237,7 @@ public class YazioOverviewApp {
             Page page = new Page();
             page.title("Meine Tagesübersicht", 40, 808);
             page.boldAt("Name: ____________________", 40, 758, 12);
+            page.boldAt("Geb. Datum: ____________________", 318, 758, 12);
             page.boldAt("Datum:", 40, 732, 12);
             page.boldAt(report.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")), 110, 732, 12);
             page.boldAt("Wochentag:", 318, 732, 12);
@@ -1248,7 +1259,7 @@ public class YazioOverviewApp {
             int y = top - headerHeight;
             for (MealReport meal : exportMeals(report.meals()).values()) {
                 y -= rowHeight;
-                page.cell(left, y, mealWidth, rowHeight, mealExportLabel(meal.key()) + "\n" + meal.total().inline(), 8, true, false);
+                page.cell(left, y, mealWidth, rowHeight, mealMacroBlock(meal), 8, true, false);
                 page.cell(left + mealWidth, y, eatenWidth, rowHeight, joinItems(meal, false), 7, false, false);
                 page.cell(left + mealWidth + eatenWidth, y, drinkWidth, rowHeight, joinItems(meal, true), 7, false, false);
             }
@@ -1304,16 +1315,19 @@ public class YazioOverviewApp {
 
             private static List<String> wrap(String text, int max) {
                 List<String> lines = new ArrayList<>();
-                String remaining = text == null ? "" : text;
-                while (remaining.length() > max) {
-                    int split = remaining.lastIndexOf(' ', max);
-                    if (split < 20) {
-                        split = max;
+                String[] paragraphs = (text == null ? "" : text).split("\\R", -1);
+                for (String paragraph : paragraphs) {
+                    String remaining = paragraph;
+                    while (remaining.length() > max) {
+                        int split = remaining.lastIndexOf(' ', max);
+                        if (split < 8) {
+                            split = Math.min(max, remaining.length());
+                        }
+                        lines.add(remaining.substring(0, split));
+                        remaining = remaining.substring(split).trim();
                     }
-                    lines.add(remaining.substring(0, split));
-                    remaining = remaining.substring(split).trim();
+                    lines.add(remaining);
                 }
-                lines.add(remaining);
                 return lines;
             }
 
