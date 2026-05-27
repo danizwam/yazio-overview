@@ -20,6 +20,11 @@ import static de.dazw.yazio.overview.model.Labels.*;
 /** Exportiert Tagesberichte im Office-Format. */
 public final class XlsxExport {
     private static final DateTimeFormatter DATE_LABEL = DateTimeFormatter.ofPattern("EEEE, dd.MM.yyyy", Locale.GERMANY);
+    private static final int MEAL_COLUMN_CHARS = 20;
+    private static final int ITEM_COLUMN_CHARS = 42;
+    private static final int MIN_MEAL_ROW_HEIGHT = 86;
+    private static final int LINE_HEIGHT = 17;
+    private static final int ROW_PADDING = 12;
 
     public static byte[] write(List<DayReport> reports) throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -99,10 +104,13 @@ public final class XlsxExport {
         rows.add(new Row(22, List.of(new Cell("Mahlzeit", 4), new Cell("gegessen wurde", 4), new Cell("getrunken wurde...", 4))));
 
         for (MealReport meal : exportMeals(report.meals()).values()) {
-            rows.add(new Row(86, List.of(
-                    new Cell(mealMacroBlock(meal), 5),
-                    new Cell(joinItems(meal, false), 7),
-                    new Cell(joinItems(meal, true), 7)
+            String macroText = mealMacroBlock(meal);
+            String eatenText = joinItems(meal, false);
+            String drinkText = joinItems(meal, true);
+            rows.add(new Row(mealRowHeight(macroText, eatenText, drinkText), List.of(
+                    new Cell(macroText, 5),
+                    new Cell(eatenText, 7),
+                    new Cell(drinkText, 7)
             )));
         }
         rows.add(new Row(22, List.of(new Cell("Gesamt:", 6), new Cell(report.total().inline(), 6), new Cell("", 6))));
@@ -167,6 +175,30 @@ public final class XlsxExport {
                 .map(item -> itemLine(item))
                 .toList();
         return String.join("\n", lines);
+    }
+
+    private static int mealRowHeight(String macroText, String eatenText, String drinkText) {
+        int lines = Math.max(
+                visualLines(macroText, MEAL_COLUMN_CHARS),
+                Math.max(visualLines(eatenText, ITEM_COLUMN_CHARS), visualLines(drinkText, ITEM_COLUMN_CHARS))
+        );
+        return Math.max(MIN_MEAL_ROW_HEIGHT, lines * LINE_HEIGHT + ROW_PADDING);
+    }
+
+    private static int visualLines(String text, int charsPerLine) {
+        if (text == null || text.isBlank()) {
+            return 1;
+        }
+        int lines = 0;
+        for (String part : text.split("\\R", -1)) {
+            String normalized = part.strip();
+            if (normalized.isEmpty()) {
+                lines++;
+            } else {
+                lines += Math.max(1, (int) Math.ceil((double) normalized.length() / charsPerLine));
+            }
+        }
+        return lines;
     }
 
     private static void entry(ZipOutputStream zip, String name, String content) throws IOException {
