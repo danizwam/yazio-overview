@@ -78,6 +78,31 @@ button.secondary:hover,
   margin-bottom: 24px;
 }
 
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.nav-tab {
+  background: #edf1ef;
+  color: var(--muted);
+}
+
+.nav-tab.active {
+  background: var(--surface-strong);
+  color: #fff;
+}
+
+.page-section {
+  display: none;
+}
+
+.page-section.active {
+  display: block;
+}
+
 .eyebrow {
   color: var(--accent);
   font-size: 0.78rem;
@@ -140,17 +165,11 @@ h3 {
   background: var(--good);
 }
 
-.workspace {
+.analysis-layout {
   display: grid;
   grid-template-columns: 360px 1fr;
   gap: 18px;
   align-items: start;
-}
-
-.settings-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  margin-top: 18px;
 }
 
 .panel {
@@ -270,6 +289,16 @@ dd {
 }
 
 .export-actions button:hover {
+  background: #e5f2ed;
+}
+
+.today-button {
+  background: #f8fbfa;
+  border: 1px solid #cfe2dc;
+  color: var(--accent-strong);
+}
+
+.today-button:hover {
   background: #e5f2ed;
 }
 
@@ -405,7 +434,7 @@ dd {
     white-space: normal;
   }
 
-  .workspace,
+  .analysis-layout,
   .query-form,
   #singleForm,
   .settings-form {
