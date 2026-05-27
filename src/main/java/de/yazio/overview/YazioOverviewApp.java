@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.Base64;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -54,6 +55,7 @@ public class YazioOverviewApp {
     );
 
     private final Object lock = new Object();
+    private final SyncState syncState = new SyncState();
     private DataStore store = DataStore.empty();
 
     public static void main(String[] args) throws Exception {
@@ -68,6 +70,7 @@ public class YazioOverviewApp {
         server.createContext("/api/range", app::range);
         server.createContext("/api/settings", app::settings);
         server.createContext("/api/note", app::note);
+        server.createContext("/api/sync/status", app::syncStatus);
         server.createContext("/api/sync", app::sync);
         server.createContext("/api/export/xlsx", app::exportXlsx);
         server.createContext("/api/export/pdf", app::exportPdf);
@@ -197,20 +200,38 @@ public class YazioOverviewApp {
             send(exchange, 400, Map.of("error", "Bitte Yazio-Benutzername und Passwort speichern oder mitsenden."));
             return;
         }
+        if (!syncState.start(from, to)) {
+            send(exchange, 409, Map.of("error", "Es läuft bereits eine Synchronisierung."));
+            return;
+        }
+        String syncUsername = username;
+        String syncPassword = password;
+        Thread worker = new Thread(() -> runSync(syncUsername, syncPassword, from, to), "yazio-sync");
+        worker.setDaemon(true);
+        worker.start();
+        send(exchange, 202, syncState.toMap());
+    }
+
+    private void syncStatus(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        send(exchange, 200, syncState.toMap());
+    }
+
+    private void runSync(String username, String password, LocalDate from, LocalDate to) {
         try {
-            YazioSyncResult result = new YazioClient().sync(username, password, from, to);
+            syncState.log("Starte Yazio-Synchronisierung für " + from + " bis " + to + ".");
+            YazioSyncResult result = new YazioClient(syncState::log).sync(username, password, from, to);
+            syncState.log("Speichere days.json und products.json lokal.");
             Files.createDirectories(DATA_DIR);
             Files.writeString(DAYS_FILE, JsonWriter.write(result.days()), StandardCharsets.UTF_8);
             Files.writeString(PRODUCTS_FILE, JsonWriter.write(result.products()), StandardCharsets.UTF_8);
             reload();
-            send(exchange, 200, Map.of(
-                    "dayCount", result.days().size(),
-                    "productCount", result.products().size(),
-                    "from", from.toString(),
-                    "to", to.toString()
-            ));
+            syncState.success(result.days().size(), result.products().size());
         } catch (Exception ex) {
-            send(exchange, 502, Map.of("error", "Yazio-Sync fehlgeschlagen: " + ex.getMessage()));
+            syncState.fail(ex.getMessage());
         }
     }
 
@@ -1541,17 +1562,89 @@ public class YazioOverviewApp {
     record YazioSyncResult(Map<String, Object> days, Map<String, Object> products) {
     }
 
+    static final class SyncState {
+        private boolean running;
+        private String status = "idle";
+        private String error = "";
+        private LocalDate from;
+        private LocalDate to;
+        private int dayCount;
+        private int productCount;
+        private final List<String> logs = new ArrayList<>();
+
+        synchronized boolean start(LocalDate from, LocalDate to) {
+            if (running) {
+                return false;
+            }
+            this.running = true;
+            this.status = "running";
+            this.error = "";
+            this.from = from;
+            this.to = to;
+            this.dayCount = 0;
+            this.productCount = 0;
+            this.logs.clear();
+            log("Sync initialisiert.");
+            return true;
+        }
+
+        synchronized void log(String message) {
+            String line = DateTimeFormatter.ofPattern("HH:mm:ss").format(java.time.LocalTime.now()) + "  " + message;
+            logs.add(line);
+            if (logs.size() > 500) {
+                logs.remove(0);
+            }
+        }
+
+        synchronized void success(int dayCount, int productCount) {
+            this.dayCount = dayCount;
+            this.productCount = productCount;
+            this.running = false;
+            this.status = "success";
+            log("Fertig: " + dayCount + " Tage, " + productCount + " Produkte synchronisiert.");
+        }
+
+        synchronized void fail(String message) {
+            this.running = false;
+            this.status = "error";
+            this.error = message == null ? "Unbekannter Fehler" : message;
+            log("Fehler: " + this.error);
+        }
+
+        synchronized Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("running", running);
+            map.put("status", status);
+            map.put("error", error);
+            map.put("from", from == null ? null : from.toString());
+            map.put("to", to == null ? null : to.toString());
+            map.put("dayCount", dayCount);
+            map.put("productCount", productCount);
+            map.put("logs", new ArrayList<>(logs));
+            return map;
+        }
+    }
+
     static final class YazioClient {
         private static final String BASE = "https://yzapi.yazio.com";
         private static final String CLIENT_ID = "1_4hiybetvfksgw40o0sog4s884kwc840wwso8go4k8c04goo4c";
         private static final String CLIENT_SECRET = "6rok2m65xuskgkgogw40wkkk8sw0osg84s8cggsc4woos4s8o";
 
         private final HttpClient http = HttpClient.newHttpClient();
+        private final Consumer<String> log;
         private String token;
 
+        YazioClient(Consumer<String> log) {
+            this.log = log == null ? ignored -> {
+            } : log;
+        }
+
         YazioSyncResult sync(String username, String password, LocalDate from, LocalDate to) throws Exception {
+            log.accept("Melde bei Yazio an.");
             token = login(username, password);
+            log.accept("Login erfolgreich.");
             Map<LocalDate, Map<String, Object>> daily = loadDailySummaries(from, to);
+            log.accept("Tagesübersichten geladen: " + daily.size() + ".");
             Set<LocalDate> dates = new LinkedHashSet<>(daily.keySet());
             if (dates.isEmpty()) {
                 for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
@@ -1560,10 +1653,12 @@ public class YazioOverviewApp {
             }
 
             Map<String, Object> days = new TreeMap<>();
+            int loadedDays = 0;
             for (LocalDate date : dates) {
                 if (date.isBefore(from) || date.isAfter(to)) {
                     continue;
                 }
+                log.accept("Lade Tagesdetails für " + date + ".");
                 Map<String, Object> consumed = objectOrEmpty(get("/v9/user/consumed-items?date=" + date));
                 Map<String, Object> goals = objectOrEmpty(get("/v9/user/goals?date=" + date));
                 Map<String, Object> exercises = objectOrEmpty(get("/v9/user/exercises?date=" + date));
@@ -1576,14 +1671,22 @@ public class YazioOverviewApp {
                 day.put("water", water);
                 if (daily.containsKey(date) || hasConsumedEntries(consumed)) {
                     days.put(date.toString(), day);
+                    loadedDays++;
                 }
             }
+            log.accept("Tagesdetails übernommen: " + loadedDays + ".");
 
             Set<String> productIds = new LinkedHashSet<>();
             collectProductIds(days, productIds);
+            log.accept("Produktdetails zu laden: " + productIds.size() + ".");
             Map<String, Object> products = new LinkedHashMap<>();
+            int loadedProducts = 0;
             for (String productId : productIds) {
                 products.put(productId, objectOrEmpty(get("/v9/products/" + encode(productId))));
+                loadedProducts++;
+                if (loadedProducts == productIds.size() || loadedProducts % 25 == 0) {
+                    log.accept("Produkte geladen: " + loadedProducts + "/" + productIds.size() + ".");
+                }
             }
             return new YazioSyncResult(days, products);
         }
@@ -1612,6 +1715,7 @@ public class YazioOverviewApp {
             LocalDate last = to.withDayOfMonth(1);
             while (!cursor.isAfter(last)) {
                 LocalDate monthEnd = cursor.plusMonths(1).minusDays(1);
+                log.accept("Lade Monatsübersicht " + cursor + " bis " + monthEnd + ".");
                 String response = get("/v9/user/consumed-items/nutrients-daily?start=" + cursor + "&end=" + monthEnd);
                 extractDailySummaries(new JsonParser(response).parse(), result);
                 cursor = cursor.plusMonths(1);

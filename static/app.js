@@ -18,6 +18,9 @@ const els = {
   yazioPassword: document.querySelector("#yazioPassword"),
   syncFromDate: document.querySelector("#syncFromDate"),
   syncToDate: document.querySelector("#syncToDate"),
+  syncLogPanel: document.querySelector("#syncLogPanel"),
+  syncLogState: document.querySelector("#syncLogState"),
+  syncLog: document.querySelector("#syncLog"),
   singleForm: document.querySelector("#singleForm"),
   rangeForm: document.querySelector("#rangeForm"),
   singleExports: document.querySelector("#singleExports"),
@@ -90,6 +93,7 @@ els.syncForm.addEventListener("submit", async (event) => {
   try {
     setBusy("Synchronisiere Yazio...");
     showMessage("Synchronisierung läuft. Das kann je nach Zeitraum etwas dauern.", "ok");
+    showSyncLog({ status: "running", logs: ["Starte Synchronisierung..."], running: true });
     const response = await fetch("/api/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -99,8 +103,8 @@ els.syncForm.addEventListener("submit", async (event) => {
       })
     });
     const payload = await readJson(response);
-    await loadStatus();
-    showMessage(`Synchronisiert: ${payload.dayCount} Tage, ${payload.productCount} Produkte.`, "ok");
+    showSyncLog(payload);
+    pollSyncStatus();
   } catch (error) {
     showMessage(error.message);
   }
@@ -191,6 +195,40 @@ function fillSettings(settings) {
   els.birthDate.value = settings.birthDate ?? "";
   els.yazioUsername.value = settings.username ?? "";
   els.yazioPassword.placeholder = settings.hasPassword ? "Gespeichertes Passwort bleibt erhalten" : "";
+}
+
+async function pollSyncStatus() {
+  try {
+    const response = await fetch("/api/sync/status");
+    const payload = await readJson(response);
+    showSyncLog(payload);
+    if (payload.running) {
+      window.setTimeout(pollSyncStatus, 1000);
+      return;
+    }
+    await loadStatus();
+    if (payload.status === "success") {
+      showMessage(`Synchronisiert: ${payload.dayCount} Tage, ${payload.productCount} Produkte.`, "ok");
+    } else if (payload.status === "error") {
+      showMessage(`Yazio-Sync fehlgeschlagen: ${payload.error}`);
+    }
+  } catch (error) {
+    showMessage(error.message);
+  }
+}
+
+function showSyncLog(payload) {
+  els.syncLogPanel.classList.remove("hidden");
+  const logs = payload.logs ?? [];
+  els.syncLog.textContent = logs.join("\n");
+  els.syncLogState.textContent = payload.running
+    ? "läuft"
+    : payload.status === "success"
+      ? "fertig"
+      : payload.status === "error"
+        ? "Fehler"
+        : "bereit";
+  els.syncLog.scrollTop = els.syncLog.scrollHeight;
 }
 
 function renderDays(days) {
