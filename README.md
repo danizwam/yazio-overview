@@ -39,6 +39,7 @@ java -cp out de.yazio.overview.YazioOverviewApp
 - Datumsbereich mit getrennt kopierbaren Tages- und Mahlzeitentexten
 - Excel-Export für einen Tag oder Datumsbereich, ein Tabellenblatt pro Tag
 - PDF-Export für einen Tag oder Datumsbereich
+- Hilfe-Seite, Tooltips und Einstiegshinweis bei leerem Datenbestand
 - Responsive Weboberfläche ohne externe Java- oder JavaScript-Abhängigkeiten
 
 ## Code-Struktur

@@ -29,17 +29,18 @@ const els = {
   fromDate: document.querySelector("#fromDate"),
   toDate: document.querySelector("#toDate"),
   results: document.querySelector("#results"),
+  emptyState: document.querySelector("#emptyState"),
   message: document.querySelector("#message"),
   dayTemplate: document.querySelector("#dayTemplate"),
   mealTemplate: document.querySelector("#mealTemplate")
 };
 
 document.querySelectorAll(".nav-tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".nav-tab").forEach((item) => item.classList.toggle("active", item === tab));
-    document.querySelectorAll(".page-section").forEach((page) => page.classList.toggle("active", page.id === `page-${tab.dataset.page}`));
-    clearMessage();
-  });
+  tab.addEventListener("click", () => showPage(tab.dataset.page));
+});
+
+document.querySelectorAll("[data-goto]").forEach((button) => {
+  button.addEventListener("click", () => showPage(button.dataset.goto));
 });
 
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -171,7 +172,7 @@ async function loadStatus() {
     ? "Datenfehler"
     : status.hasProducts && status.hasDays
       ? "Bereit"
-      : "JSON hochladen";
+      : "Daten importieren";
   els.productCount.textContent = String(status.productCount ?? 0);
   els.dayCount.textContent = String(status.dayCount ?? 0);
   els.dateRange.textContent = status.firstDate && status.lastDate
@@ -187,6 +188,7 @@ async function loadStatus() {
   if (status.lastDate && !els.toDate.value) els.toDate.value = status.lastDate;
   if (!els.syncFromDate.value) els.syncFromDate.value = status.recommendedSyncFrom ?? todayIso();
   if (!els.syncToDate.value) els.syncToDate.value = status.recommendedSyncTo ?? todayIso();
+  els.emptyState.classList.toggle("hidden", status.hasProducts || status.hasDays);
   if (status.error) showMessage(status.error);
 }
 
@@ -376,6 +378,12 @@ function showMessage(text, kind = "error") {
 
 function clearMessage() {
   els.message.classList.add("hidden");
+}
+
+function showPage(pageName) {
+  document.querySelectorAll(".nav-tab").forEach((item) => item.classList.toggle("active", item.dataset.page === pageName));
+  document.querySelectorAll(".page-section").forEach((page) => page.classList.toggle("active", page.id === `page-${pageName}`));
+  clearMessage();
 }
 
 async function readJson(response) {

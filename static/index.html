@@ -24,6 +24,7 @@
       <button class="nav-tab" type="button" data-page="sync">Yazio Import</button>
       <button class="nav-tab" type="button" data-page="profile">Profil</button>
       <button class="nav-tab" type="button" data-page="admin">Admin</button>
+      <button class="nav-tab" type="button" data-page="help">Hilfe</button>
     </nav>
 
     <section id="page-analysis" class="page-section active">
@@ -54,7 +55,7 @@
 
           <form id="singleForm" class="query-form">
             <label>
-              <span>Datum</span>
+              <span>Datum <button class="info-tip" type="button" title="Wähle den Tag aus, den du anzeigen, kopieren oder exportieren möchtest.">?</button></span>
               <input id="singleDate" type="date" required>
             </label>
             <button type="button" class="today-button" data-target="singleDate">Heute</button>
@@ -67,12 +68,12 @@
 
           <form id="rangeForm" class="query-form hidden">
             <label>
-              <span>Von</span>
+              <span>Von <button class="info-tip" type="button" title="Start des Zeitraums für Anzeige und Export.">?</button></span>
               <input id="fromDate" type="date" required>
             </label>
             <button type="button" class="today-button" data-target="fromDate">Heute</button>
             <label>
-              <span>Bis</span>
+              <span>Bis <button class="info-tip" type="button" title="Ende des Zeitraums für Anzeige und Export.">?</button></span>
               <input id="toDate" type="date" required>
             </label>
             <button type="button" class="today-button" data-target="toDate">Heute</button>
@@ -85,6 +86,19 @@
         </section>
       </section>
 
+      <section id="emptyState" class="empty-state hidden">
+        <div>
+          <p class="eyebrow">Erster Start</p>
+          <h2>Noch keine Yazio-Daten vorhanden</h2>
+          <p>Synchronisiere deine Daten direkt aus Yazio oder lade vorhandene JSON-Dateien im Admin-Bereich hoch. Danach kannst du hier einzelne Tage und Zeiträume auswerten.</p>
+        </div>
+        <div class="empty-actions">
+          <button type="button" data-goto="sync">Yazio Import öffnen</button>
+          <button type="button" class="secondary" data-goto="admin">JSON hochladen</button>
+          <button type="button" class="secondary" data-goto="help">Leitfaden lesen</button>
+        </div>
+      </section>
+
       <section id="results" class="results"></section>
     </section>
 
@@ -93,12 +107,12 @@
         <h2>Yazio Import</h2>
         <form id="syncForm" class="settings-form">
           <label>
-            <span>Sync von</span>
+            <span>Sync von <button class="info-tip" type="button" title="Das Tool schlägt automatisch den ältesten unvollständigen Tag vor, sonst die letzten 14 Tage.">?</button></span>
             <input id="syncFromDate" type="date" required>
           </label>
           <button type="button" class="today-button" data-target="syncFromDate">Heute</button>
           <label>
-            <span>Sync bis</span>
+            <span>Sync bis <button class="info-tip" type="button" title="Normalerweise ist heute sinnvoll. Heute importierte Daten können später automatisch vervollständigt werden.">?</button></span>
             <input id="syncToDate" type="date" required>
           </label>
           <button type="button" class="today-button" data-target="syncToDate">Heute</button>
@@ -119,19 +133,19 @@
         <h2>Persönliche Informationen</h2>
         <form id="settingsForm" class="settings-form">
           <label>
-            <span>Name</span>
+            <span>Name <button class="info-tip" type="button" title="Wird im Header von Excel- und PDF-Exporten eingetragen.">?</button></span>
             <input id="profileName" type="text" autocomplete="name">
           </label>
           <label>
-            <span>Geburtsdatum</span>
+            <span>Geburtsdatum <button class="info-tip" type="button" title="Wird im Export im Format TT.MM.JJJJ angezeigt.">?</button></span>
             <input id="birthDate" type="date">
           </label>
           <label>
-            <span>Yazio Benutzername</span>
+            <span>Yazio Benutzername <button class="info-tip" type="button" title="Wird nur lokal gespeichert und für die Yazio-Synchronisierung verwendet.">?</button></span>
             <input id="yazioUsername" type="email" autocomplete="username">
           </label>
           <label>
-            <span>Yazio Passwort</span>
+            <span>Yazio Passwort <button class="info-tip" type="button" title="Wird lokal Base64-kodiert gespeichert. Das ist keine starke Verschlüsselung, aber für lokale On-Prem-Nutzung transparent.">?</button></span>
             <input id="yazioPassword" type="password" autocomplete="current-password">
           </label>
           <button type="submit">Einstellungen speichern</button>
@@ -144,15 +158,47 @@
         <h2>Admin</h2>
         <form id="uploadForm" class="settings-form">
           <label>
-            <span>products.json</span>
+            <span>products.json <button class="info-tip" type="button" title="Produktdaten aus Yazio. Im Normalfall brauchst du das nur für manuelle Tests oder Altimporte.">?</button></span>
             <input type="file" name="products" accept="application/json,.json">
           </label>
           <label>
-            <span>days.json</span>
+            <span>days.json <button class="info-tip" type="button" title="Tagesdaten aus Yazio. Manuelle Uploads überschreiben die konsolidierte Arbeitsdatei.">?</button></span>
             <input type="file" name="days" accept="application/json,.json">
           </label>
           <button type="submit">Upload speichern</button>
         </form>
+      </section>
+    </section>
+
+    <section id="page-help" class="page-section">
+      <section class="panel help-panel">
+        <h2>Leitfaden</h2>
+        <div class="help-grid">
+          <article>
+            <h3>1. Daten einrichten</h3>
+            <p>Am bequemsten ist der Bereich Yazio Import. Dort hinterlegst du im Profil Benutzername und Passwort und synchronisierst anschließend den vorgeschlagenen Zeitraum.</p>
+          </article>
+          <article>
+            <h3>2. Inkrementell synchronisieren</h3>
+            <p>Jeder Import wird als Snapshot gespeichert. Die Arbeitsdateien werden danach konsolidiert. Vollständige Tage schlagen unvollständige Tage; sonst gewinnt der neuere Import.</p>
+          </article>
+          <article>
+            <h3>3. Auswerten</h3>
+            <p>Auf der Startseite wählst du einen Tag oder Zeitraum. Die Mahlzeiten werden mit Bestandteilen und Makros angezeigt und lassen sich kopieren.</p>
+          </article>
+          <article>
+            <h3>4. Exportieren</h3>
+            <p>Excel und PDF übernehmen Name, Geburtsdatum und die Besonderheiten des Tages. Bei Zeiträumen bekommt jeder Tag im Excel eine eigene Tabelle.</p>
+          </article>
+          <article>
+            <h3>5. Admin-Bereich</h3>
+            <p>Der manuelle Upload ist für vorhandene products.json und days.json gedacht. Für den normalen Betrieb ist der direkte Yazio Import besser geeignet.</p>
+          </article>
+          <article>
+            <h3>6. Besonderheiten</h3>
+            <p>Notizen pro Tag bleiben lokal erhalten und überleben neue Yazio-Imports, weil sie getrennt von den Yazio-Daten gespeichert werden.</p>
+          </article>
+        </div>
       </section>
     </section>
 
@@ -170,7 +216,7 @@
       </header>
       <div class="macro-strip"></div>
       <label class="note-field">
-        <span>Besonderheiten an diesem Tag</span>
+        <span>Besonderheiten an diesem Tag <button class="info-tip" type="button" title="Diese Notiz wird lokal gespeichert und erscheint in Excel und PDF.">?</button></span>
         <input class="day-note" type="text">
       </label>
       <div class="meals"></div>
