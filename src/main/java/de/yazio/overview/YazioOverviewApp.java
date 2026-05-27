@@ -1111,6 +1111,14 @@ public class YazioOverviewApp {
         return "_".repeat(Math.max(4, underscores));
     }
 
+    private static String dateLineValue(String value, int underscores) {
+        if (value != null && !value.isBlank()) {
+            LocalDate date = parseDate(value);
+            return date == null ? value : date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        }
+        return "_".repeat(Math.max(4, underscores));
+    }
+
     private static Map<String, MealReport> exportMeals(List<MealReport> meals) {
         Map<String, MealReport> grouped = new LinkedHashMap<>();
         grouped.put("breakfast", new MealReport("breakfast"));
@@ -1272,7 +1280,7 @@ public class YazioOverviewApp {
             List<Row> rows = new ArrayList<>();
             rows.add(new Row(24, List.of(new Cell("Meine Tagesübersicht", 1), new Cell(""), new Cell(""))));
             rows.add(new Row(18, List.of(new Cell(""), new Cell(""), new Cell(""))));
-            rows.add(new Row(22, List.of(new Cell("Name: " + lineValue(report.settings().name(), 24), 2), new Cell("Geb. Datum: " + lineValue(report.settings().birthDate(), 18), 2), new Cell(""))));
+            rows.add(new Row(22, List.of(new Cell("Name: " + lineValue(report.settings().name(), 24), 2), new Cell("Geb. Datum: " + dateLineValue(report.settings().birthDate(), 18), 2), new Cell(""))));
             rows.add(new Row(22, List.of(new Cell("Datum: " + report.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")), 2), new Cell("Wochentag: " + report.date().format(DateTimeFormatter.ofPattern("EEEE", Locale.GERMANY)), 2), new Cell(""))));
             rows.add(new Row(14, List.of(new Cell(""), new Cell(""), new Cell(""))));
             rows.add(new Row(22, List.of(new Cell("Mahlzeit", 4), new Cell("gegessen wurde", 4), new Cell("getrunken wurde...", 4))));
@@ -1458,7 +1466,7 @@ public class YazioOverviewApp {
             Page page = new Page();
             page.title("Meine Tagesübersicht", 40, 808);
             page.boldAt("Name: " + lineValue(report.settings().name(), 22), 40, 758, 12);
-            page.boldAt("Geb. Datum: " + lineValue(report.settings().birthDate(), 18), 318, 758, 12);
+            page.boldAt("Geb. Datum: " + dateLineValue(report.settings().birthDate(), 18), 318, 758, 12);
             page.boldAt("Datum:", 40, 732, 12);
             page.boldAt(report.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")), 110, 732, 12);
             page.boldAt("Wochentag:", 318, 732, 12);
