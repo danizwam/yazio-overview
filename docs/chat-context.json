@@ -25,6 +25,7 @@
     "Direct Yazio sync from username/password and date range",
     "Local personal settings for name and birth date",
     "Local per-day notes for export field 'Besonderheiten an diesem Tag'",
+    "Tabbed UI sections for analysis, Yazio import, profile, and admin",
     "Dockerfile and docker-compose.yaml"
   ],
   "exportLayout": {
@@ -89,7 +90,8 @@
     "User wants local commits as rollback points.",
     "Pushing can be done by the user if needed; committing is the important part.",
     "PDF should be portrait, not landscape.",
-    "Exports should resemble the provided manual Tagesübersicht screenshot."
+    "Exports should resemble the provided manual Tagesübersicht screenshot.",
+    "Main page should stay focused on date/range analysis; sync, profile, and manual JSON upload belong in sub-pages."
   ],
   "openFollowUps": [
     "Test Yazio sync with real credentials against the live Yazio API.",

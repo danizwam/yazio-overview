@@ -31,6 +31,14 @@ const els = {
   mealTemplate: document.querySelector("#mealTemplate")
 };
 
+document.querySelectorAll(".nav-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".nav-tab").forEach((item) => item.classList.toggle("active", item === tab));
+    document.querySelectorAll(".page-section").forEach((page) => page.classList.toggle("active", page.id === `page-${tab.dataset.page}`));
+    clearMessage();
+  });
+});
+
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
     state.mode = tab.dataset.mode;
@@ -45,6 +53,13 @@ document.querySelectorAll(".tab").forEach((tab) => {
 
 document.querySelectorAll("[data-export]").forEach((button) => {
   button.addEventListener("click", () => exportFile(button.dataset.scope, button.dataset.export));
+});
+
+document.querySelectorAll(".today-button").forEach((button) => {
+  button.addEventListener("click", () => {
+    const target = document.querySelector(`#${button.dataset.target}`);
+    if (target) target.value = todayIso();
+  });
 });
 
 els.settingsForm.addEventListener("submit", async (event) => {
@@ -159,15 +174,15 @@ async function loadStatus() {
     ? `${formatDate(status.firstDate)} bis ${formatDate(status.lastDate)}`
     : "-";
   fillSettings(status.settings ?? {});
-  for (const input of [els.singleDate, els.fromDate, els.toDate, els.syncFromDate, els.syncToDate]) {
+  for (const input of [els.singleDate, els.fromDate, els.toDate]) {
     if (status.firstDate) input.min = status.firstDate;
     if (status.lastDate) input.max = status.lastDate;
   }
   if (status.lastDate && !els.singleDate.value) els.singleDate.value = status.lastDate;
   if (status.firstDate && !els.fromDate.value) els.fromDate.value = status.firstDate;
   if (status.lastDate && !els.toDate.value) els.toDate.value = status.lastDate;
-  if (status.firstDate && !els.syncFromDate.value) els.syncFromDate.value = status.firstDate;
-  if (status.lastDate && !els.syncToDate.value) els.syncToDate.value = status.lastDate;
+  if (!els.syncFromDate.value) els.syncFromDate.value = status.firstDate ?? todayIso();
+  if (!els.syncToDate.value) els.syncToDate.value = todayIso();
   if (status.error) showMessage(status.error);
 }
 
@@ -301,6 +316,12 @@ function exportFile(scope, type) {
     params.set("to", els.toDate.value);
   }
   window.location.href = `/api/export/${type}?${params.toString()}`;
+}
+
+function todayIso() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
 }
 
 function setBusy(text) {
