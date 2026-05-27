@@ -26,7 +26,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -209,7 +210,8 @@ input[type="file"],
 input[type="date"],
 input[type="email"],
 input[type="password"],
-input[type="text"] {
+input[type="text"],
+select {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--line);
@@ -425,6 +427,70 @@ dd {
   margin-bottom: 0;
 }
 
+.insight-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr) minmax(180px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.insight-summary {
+  color: var(--muted);
+  font-weight: 700;
+  margin-top: 14px;
+}
+
+.insight-results,
+.product-detail {
+  margin-top: 16px;
+}
+
+.insight-table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border: 1px solid #e5ece8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.insight-table th,
+.insight-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf0ec;
+  text-align: left;
+  vertical-align: top;
+}
+
+.insight-table th {
+  background: #f7faf8;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.insight-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.insight-table button {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.number-cell {
+  font-weight: 800;
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.product-detail {
+  border: 1px solid #cfe2dc;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fbfa;
+}
+
 .day-card {
   border-radius: 8px;
   padding: 22px;
@@ -541,6 +607,7 @@ dd {
   .query-form,
   #singleForm,
   .settings-form,
+  .insight-controls,
   .empty-state,
   .help-grid {
     grid-template-columns: 1fr;

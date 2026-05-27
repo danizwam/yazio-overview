@@ -21,6 +21,7 @@
 
     <nav class="main-nav" aria-label="Bereiche">
       <button class="nav-tab active" type="button" data-page="analysis">Auswertung</button>
+      <button class="nav-tab" type="button" data-page="insights">Listen</button>
       <button class="nav-tab" type="button" data-page="sync">Yazio Import</button>
       <button class="nav-tab" type="button" data-page="profile">Profil</button>
       <button class="nav-tab" type="button" data-page="admin">Admin</button>
@@ -124,6 +125,50 @@
             <span id="syncLogState">Bereit</span>
           </div>
           <pre id="syncLog" class="sync-log"></pre>
+        </section>
+      </section>
+    </section>
+
+    <section id="page-insights" class="page-section">
+      <section class="panel insights-panel">
+        <h2>Listen und Verdichtungen</h2>
+        <form id="insightForm" class="insight-controls">
+          <label>
+            <span>Liste <button class="info-tip" type="button" title="Die zuletzt gewählte Liste wird im Browser gespeichert.">?</button></span>
+            <select id="insightType">
+              <option value="search">Produktsuche</option>
+              <option value="top-amount">Top 100 nach Menge</option>
+              <option value="top-calories">Top 100 nach Kalorien</option>
+              <option value="top-protein">Top 100 nach Protein</option>
+              <option value="days-calories">Tage nach Kalorien</option>
+              <option value="days-protein">Tage nach Protein</option>
+              <option value="meals">Mahlzeiten verdichtet</option>
+              <option value="weekdays">Wochentage verdichtet</option>
+              <option value="months">Monate verdichtet</option>
+            </select>
+          </label>
+          <label id="insightSearchLabel">
+            <span>Suche <button class="info-tip" type="button" title="Die Suche arbeitet wie *Suchtext*: vorne und hinten offen, Groß-/Kleinschreibung egal.">?</button></span>
+            <input id="insightSearch" type="text" placeholder="z. B. *Skyr*">
+          </label>
+          <label>
+            <span>Sortierung</span>
+            <select id="insightSort"></select>
+          </label>
+          <button type="submit">Liste anzeigen</button>
+        </form>
+        <div id="insightSummary" class="insight-summary"></div>
+        <div id="insightResults" class="insight-results"></div>
+        <section id="productDetail" class="product-detail hidden">
+          <div class="sync-log-header">
+            <strong id="productDetailTitle">Verzehrtage</strong>
+            <select id="productDaySort" title="Verzehrtage sortieren">
+              <option value="amount">Menge absteigend</option>
+              <option value="calories">Kalorien absteigend</option>
+              <option value="date">Datum absteigend</option>
+            </select>
+          </div>
+          <div id="productDayResults"></div>
         </section>
       </section>
     </section>

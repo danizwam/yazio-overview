@@ -37,6 +37,9 @@ java -cp out de.yazio.overview.YazioOverviewApp
 - Verknüpfung der Produkt-IDs aus `days.json` mit den Produktdaten aus `products.json`
 - Einzelner Tag mit Mahlzeiten, Bestandteilen und Makros
 - Datumsbereich mit getrennt kopierbaren Tages- und Mahlzeitentexten
+- Listenansicht mit Produktsuche, Top-100-Lebensmitteln und Tagesranking
+- Verdichtungen nach Mahlzeiten, Wochentagen und Monaten
+- Klick von Listen auf Produkt-Verzehrtage oder Tagesübersicht in einem neuen Tab
 - Excel-Export für einen Tag oder Datumsbereich, ein Tabellenblatt pro Tag
 - PDF-Export für einen Tag oder Datumsbereich
 - Hilfe-Seite, Tooltips und Einstiegshinweis bei leerem Datenbestand
