@@ -1,4 +1,4 @@
-package de.yazio.overview.model;
+package de.dazw.yazio.overview.model;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import de.yazio.overview.model.Domain.FoodItem;
-import de.yazio.overview.model.Domain.Macro;
-import de.yazio.overview.model.Domain.MealReport;
+import de.dazw.yazio.overview.model.Domain.FoodItem;
+import de.dazw.yazio.overview.model.Domain.Macro;
+import de.dazw.yazio.overview.model.Domain.MealReport;
 
 /**
  * Formatierung und Exportlabels.

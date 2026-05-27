@@ -1,6 +1,6 @@
-package de.yazio.overview.service;
+package de.dazw.yazio.overview.service;
 
-import de.yazio.overview.model.Domain.*;
+import de.dazw.yazio.overview.model.Domain.*;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -8,7 +8,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import static de.yazio.overview.model.Labels.amountLabel;
+import static de.dazw.yazio.overview.model.Labels.amountLabel;
 
 /**
  * Erzeugt aus den gespeicherten Yazio-Rohdaten die fachliche Tagesauswertung.

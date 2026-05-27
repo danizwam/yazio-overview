@@ -38,12 +38,12 @@
     "Dockerfile and docker-compose.yaml"
   ],
   "codeStructure": {
-    "de.yazio.overview": "HTTP server, API handlers, local import snapshot consolidation",
-    "de.yazio.overview.export": "Excel and PDF exports",
-    "de.yazio.overview.json": "Dependency-free JSON parser/writer",
-    "de.yazio.overview.model": "Domain records and display labels",
-    "de.yazio.overview.service": "Day report aggregation and macro calculation",
-    "de.yazio.overview.sync": "Yazio API sync client and sync job status"
+    "de.dazw.yazio.overview": "HTTP server, API handlers, local import snapshot consolidation",
+    "de.dazw.yazio.overview.export": "Excel and PDF exports",
+    "de.dazw.yazio.overview.json": "Dependency-free JSON parser/writer",
+    "de.dazw.yazio.overview.model": "Domain records and display labels",
+    "de.dazw.yazio.overview.service": "Day report aggregation and macro calculation",
+    "de.dazw.yazio.overview.sync": "Yazio API sync client and sync job status"
   },
   "exportLayout": {
     "meals": [

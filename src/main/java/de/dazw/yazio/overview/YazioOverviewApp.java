@@ -1,18 +1,18 @@
-package de.yazio.overview;
+package de.dazw.yazio.overview;
 
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import de.yazio.overview.export.PdfExport;
-import de.yazio.overview.export.XlsxExport;
-import de.yazio.overview.json.JsonParser;
-import de.yazio.overview.json.JsonWriter;
-import de.yazio.overview.model.Domain.*;
-import de.yazio.overview.service.InsightService;
-import de.yazio.overview.service.ReportService;
-import de.yazio.overview.sync.SyncSupport.*;
+import de.dazw.yazio.overview.export.PdfExport;
+import de.dazw.yazio.overview.export.XlsxExport;
+import de.dazw.yazio.overview.json.JsonParser;
+import de.dazw.yazio.overview.json.JsonWriter;
+import de.dazw.yazio.overview.model.Domain.*;
+import de.dazw.yazio.overview.service.InsightService;
+import de.dazw.yazio.overview.service.ReportService;
+import de.dazw.yazio.overview.sync.SyncSupport.*;
 
-import static de.yazio.overview.model.Labels.*;
+import static de.dazw.yazio.overview.model.Labels.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

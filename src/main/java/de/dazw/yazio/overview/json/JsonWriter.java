@@ -1,4 +1,4 @@
-package de.yazio.overview.json;
+package de.dazw.yazio.overview.json;
 
 import java.util.Locale;
 import java.util.Map;
