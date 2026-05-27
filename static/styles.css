@@ -147,15 +147,33 @@ h3 {
   align-items: start;
 }
 
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-top: 18px;
+}
+
 .panel {
   border-radius: 8px;
   padding: 20px;
 }
 
 .upload-form,
-.query-form {
+.query-form,
+.settings-form {
   display: grid;
   gap: 14px;
+}
+
+.settings-form {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+}
+
+.panel-rule {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 18px 0;
 }
 
 label span {
@@ -167,7 +185,10 @@ label span {
 }
 
 input[type="file"],
-input[type="date"] {
+input[type="date"],
+input[type="email"],
+input[type="password"],
+input[type="text"] {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--line);
@@ -297,6 +318,11 @@ dd {
   margin: 16px 0;
 }
 
+.note-field {
+  display: block;
+  margin: 10px 0 18px;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -381,7 +407,8 @@ dd {
 
   .workspace,
   .query-form,
-  #singleForm {
+  #singleForm,
+  .settings-form {
     grid-template-columns: 1fr;
   }
 

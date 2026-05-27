@@ -22,6 +22,9 @@
     "Copy day or meal summaries to clipboard with fallback",
     "Excel export for one day or date range, one sheet per day",
     "PDF export for one day or date range",
+    "Direct Yazio sync from username/password and date range",
+    "Local personal settings for name and birth date",
+    "Local per-day notes for export field 'Besonderheiten an diesem Tag'",
     "Dockerfile and docker-compose.yaml"
   ],
   "exportLayout": {
@@ -89,6 +92,7 @@
     "Exports should resemble the provided manual Tagesübersicht screenshot."
   ],
   "openFollowUps": [
+    "Test Yazio sync with real credentials against the live Yazio API.",
     "Further visual refinement of Excel and PDF layout.",
     "Potential tuning of drink classification if products are misclassified.",
     "Potential additional fields for sport or notes if data source is defined."

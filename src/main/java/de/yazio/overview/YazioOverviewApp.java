@@ -11,7 +11,12 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +34,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.Base64;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -37,6 +43,8 @@ public class YazioOverviewApp {
     private static final Path DATA_DIR = Path.of(System.getenv().getOrDefault("YAZIO_DATA_DIR", "data"));
     private static final Path PRODUCTS_FILE = DATA_DIR.resolve("products.json");
     private static final Path DAYS_FILE = DATA_DIR.resolve("days.json");
+    private static final Path SETTINGS_FILE = DATA_DIR.resolve("settings.json");
+    private static final Path NOTES_FILE = DATA_DIR.resolve("notes.json");
     private static final Map<String, String> CONTENT_TYPES = Map.of(
             ".html", "text/html; charset=utf-8",
             ".css", "text/css; charset=utf-8",
@@ -58,6 +66,9 @@ public class YazioOverviewApp {
         server.createContext("/api/upload", app::upload);
         server.createContext("/api/day", app::day);
         server.createContext("/api/range", app::range);
+        server.createContext("/api/settings", app::settings);
+        server.createContext("/api/note", app::note);
+        server.createContext("/api/sync", app::sync);
         server.createContext("/api/export/xlsx", app::exportXlsx);
         server.createContext("/api/export/pdf", app::exportPdf);
         server.createContext("/", app::staticFile);
@@ -74,7 +85,13 @@ public class YazioOverviewApp {
                 Map<LocalDate, Day> days = Files.exists(DAYS_FILE)
                         ? parseDays(Files.readString(DAYS_FILE))
                         : Map.of();
-                store = new DataStore(products, days);
+                AppSettings settings = Files.exists(SETTINGS_FILE)
+                        ? parseSettings(Files.readString(SETTINGS_FILE))
+                        : AppSettings.empty();
+                Map<LocalDate, String> notes = Files.exists(NOTES_FILE)
+                        ? parseNotes(Files.readString(NOTES_FILE))
+                        : Map.of();
+                store = new DataStore(products, days, settings, notes);
             } catch (RuntimeException | IOException ex) {
                 store = DataStore.empty().withError(ex.getMessage());
             }
@@ -94,8 +111,107 @@ public class YazioOverviewApp {
         body.put("dayCount", snapshot.days().size());
         body.put("firstDate", snapshot.firstDate().map(LocalDate::toString).orElse(null));
         body.put("lastDate", snapshot.lastDate().map(LocalDate::toString).orElse(null));
+        body.put("settings", snapshot.settings().publicMap());
         body.put("error", snapshot.error());
         send(exchange, 200, body);
+    }
+
+    private void settings(HttpExchange exchange) throws IOException {
+        if (exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 200, snapshot().settings().publicMap());
+            return;
+        }
+        if (!exchange.getRequestMethod().equals("POST")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
+        AppSettings existing = snapshot().settings();
+        String password = str(body.get("password"));
+        AppSettings updated = new AppSettings(
+                str(body.get("name")),
+                str(body.get("birthDate")),
+                str(body.get("username")),
+                password == null || password.isBlank() ? existing.passwordBase64() : Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8))
+        );
+        Files.createDirectories(DATA_DIR);
+        Files.writeString(SETTINGS_FILE, JsonWriter.write(updated.toPersistedMap()), StandardCharsets.UTF_8);
+        reload();
+        send(exchange, 200, snapshot().settings().publicMap());
+    }
+
+    private void note(HttpExchange exchange) throws IOException {
+        Map<String, String> query = query(exchange);
+        LocalDate date = parseDate(query.get("date"));
+        if (date == null) {
+            send(exchange, 400, Map.of("error", "Bitte ein gültiges Datum angeben."));
+            return;
+        }
+        if (exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
+            return;
+        }
+        if (!exchange.getRequestMethod().equals("POST")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
+        Map<LocalDate, String> notes = new TreeMap<>(snapshot().notes());
+        String text = str(body.get("note"));
+        if (text == null || text.isBlank()) {
+            notes.remove(date);
+        } else {
+            notes.put(date, text.trim());
+        }
+        Files.createDirectories(DATA_DIR);
+        Files.writeString(NOTES_FILE, JsonWriter.write(notesToMap(notes)), StandardCharsets.UTF_8);
+        reload();
+        send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
+    }
+
+    private void sync(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("POST")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
+        LocalDate from = parseDate(str(body.get("from")));
+        LocalDate to = parseDate(str(body.get("to")));
+        if (from == null || to == null || from.isAfter(to)) {
+            send(exchange, 400, Map.of("error", "Bitte einen gültigen Zeitraum angeben."));
+            return;
+        }
+        AppSettings settings = snapshot().settings();
+        String username = str(body.get("username"));
+        String password = str(body.get("password"));
+        if (username == null || username.isBlank()) {
+            username = settings.username();
+        }
+        if (password == null || password.isBlank()) {
+            password = settings.password();
+        }
+        if (username == null || username.isBlank() || password == null || password.isBlank()) {
+            send(exchange, 400, Map.of("error", "Bitte Yazio-Benutzername und Passwort speichern oder mitsenden."));
+            return;
+        }
+        try {
+            YazioSyncResult result = new YazioClient().sync(username, password, from, to);
+            Files.createDirectories(DATA_DIR);
+            Files.writeString(DAYS_FILE, JsonWriter.write(result.days()), StandardCharsets.UTF_8);
+            Files.writeString(PRODUCTS_FILE, JsonWriter.write(result.products()), StandardCharsets.UTF_8);
+            reload();
+            send(exchange, 200, Map.of(
+                    "dayCount", result.days().size(),
+                    "productCount", result.products().size(),
+                    "from", from.toString(),
+                    "to", to.toString()
+            ));
+        } catch (Exception ex) {
+            send(exchange, 502, Map.of("error", "Yazio-Sync fehlgeschlagen: " + ex.getMessage()));
+        }
     }
 
     private void upload(HttpExchange exchange) throws IOException {
@@ -321,7 +437,7 @@ public class YazioOverviewApp {
         meals.values().forEach(meal -> total.add(meal.total()));
         List<MealReport> mealReports = new ArrayList<>(meals.values());
         mealReports.sort(Comparator.comparingInt(meal -> mealOrder(meal.key())));
-        return new DayReport(date, day.daily(), mealReports, total);
+        return new DayReport(date, day.daily(), mealReports, total, snapshot.settings(), snapshot.notes().getOrDefault(date, ""));
     }
 
     private static Macro macroFor(Product product, double amount) {
@@ -462,6 +578,45 @@ public class YazioOverviewApp {
                 dbl(map.get("fat")),
                 dbl(map.get("energy_goal"))
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private static AppSettings parseSettings(String json) {
+        Object root = new JsonParser(json).parse();
+        if (!(root instanceof Map<?, ?> raw)) {
+            return AppSettings.empty();
+        }
+        Map<String, Object> map = (Map<String, Object>) raw;
+        return new AppSettings(
+                str(map.get("name")),
+                str(map.get("birthDate")),
+                str(map.get("username")),
+                str(map.get("passwordBase64"))
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<LocalDate, String> parseNotes(String json) {
+        Object root = new JsonParser(json).parse();
+        Map<LocalDate, String> notes = new TreeMap<>();
+        if (!(root instanceof Map<?, ?> raw)) {
+            return notes;
+        }
+        Map<String, Object> map = (Map<String, Object>) raw;
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            LocalDate date = parseDate(entry.getKey());
+            String text = str(entry.getValue());
+            if (date != null && text != null && !text.isBlank()) {
+                notes.put(date, text);
+            }
+        }
+        return notes;
+    }
+
+    private static Map<String, Object> notesToMap(Map<LocalDate, String> notes) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        notes.forEach((date, note) -> map.put(date.toString(), note));
+        return map;
     }
 
     private static Map<String, Double> numbers(Map<String, Object> map) {
@@ -659,17 +814,19 @@ public class YazioOverviewApp {
         return parts;
     }
 
-    record DataStore(Map<String, Product> products, Map<LocalDate, Day> days, String error) {
+    record DataStore(Map<String, Product> products, Map<LocalDate, Day> days, AppSettings settings,
+                     Map<LocalDate, String> notes, String error) {
         static DataStore empty() {
-            return new DataStore(Map.of(), Map.of(), null);
+            return new DataStore(Map.of(), Map.of(), AppSettings.empty(), Map.of(), null);
         }
 
-        DataStore(Map<String, Product> products, Map<LocalDate, Day> days) {
-            this(products, days, null);
+        DataStore(Map<String, Product> products, Map<LocalDate, Day> days, AppSettings settings,
+                  Map<LocalDate, String> notes) {
+            this(products, days, settings, notes, null);
         }
 
         DataStore withError(String error) {
-            return new DataStore(products, days, error);
+            return new DataStore(products, days, settings, notes, error);
         }
 
         Optional<LocalDate> firstDate() {
@@ -678,6 +835,41 @@ public class YazioOverviewApp {
 
         Optional<LocalDate> lastDate() {
             return days.keySet().stream().max(LocalDate::compareTo);
+        }
+    }
+
+    record AppSettings(String name, String birthDate, String username, String passwordBase64) {
+        static AppSettings empty() {
+            return new AppSettings("", "", "", "");
+        }
+
+        String password() {
+            if (passwordBase64 == null || passwordBase64.isBlank()) {
+                return "";
+            }
+            try {
+                return new String(Base64.getDecoder().decode(passwordBase64), StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException ex) {
+                return "";
+            }
+        }
+
+        Map<String, Object> publicMap() {
+            return Map.of(
+                    "name", name == null ? "" : name,
+                    "birthDate", birthDate == null ? "" : birthDate,
+                    "username", username == null ? "" : username,
+                    "hasPassword", passwordBase64 != null && !passwordBase64.isBlank()
+            );
+        }
+
+        Map<String, Object> toPersistedMap() {
+            return Map.of(
+                    "name", name == null ? "" : name,
+                    "birthDate", birthDate == null ? "" : birthDate,
+                    "username", username == null ? "" : username,
+                    "passwordBase64", passwordBase64 == null ? "" : passwordBase64
+            );
         }
     }
 
@@ -711,7 +903,7 @@ public class YazioOverviewApp {
                          boolean aiGenerated) {
     }
 
-    record DayReport(LocalDate date, Daily daily, List<MealReport> meals, Macro total) {
+    record DayReport(LocalDate date, Daily daily, List<MealReport> meals, Macro total, AppSettings settings, String note) {
         Map<String, Object> toMap() {
             List<Map<String, Object>> mealMaps = meals.stream().map(MealReport::toMap).toList();
             return Map.of(
@@ -719,6 +911,7 @@ public class YazioOverviewApp {
                     "daily", daily.toMap(),
                     "total", total.toMap(),
                     "meals", mealMaps,
+                    "note", note == null ? "" : note,
                     "copyText", copyText()
             );
         }
@@ -890,6 +1083,13 @@ public class YazioOverviewApp {
                 + "Fett " + format(total.fat) + " g";
     }
 
+    private static String lineValue(String value, int underscores) {
+        if (value != null && !value.isBlank()) {
+            return value;
+        }
+        return "_".repeat(Math.max(4, underscores));
+    }
+
     private static Map<String, MealReport> exportMeals(List<MealReport> meals) {
         Map<String, MealReport> grouped = new LinkedHashMap<>();
         grouped.put("breakfast", new MealReport("breakfast"));
@@ -1051,7 +1251,7 @@ public class YazioOverviewApp {
             List<Row> rows = new ArrayList<>();
             rows.add(new Row(24, List.of(new Cell("Meine Tagesübersicht", 1), new Cell(""), new Cell(""))));
             rows.add(new Row(18, List.of(new Cell(""), new Cell(""), new Cell(""))));
-            rows.add(new Row(22, List.of(new Cell("Name: ____________________", 2), new Cell("Geb. Datum: ____________________", 2), new Cell(""))));
+            rows.add(new Row(22, List.of(new Cell("Name: " + lineValue(report.settings().name(), 24), 2), new Cell("Geb. Datum: " + lineValue(report.settings().birthDate(), 18), 2), new Cell(""))));
             rows.add(new Row(22, List.of(new Cell("Datum: " + report.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")), 2), new Cell("Wochentag: " + report.date().format(DateTimeFormatter.ofPattern("EEEE", Locale.GERMANY)), 2), new Cell(""))));
             rows.add(new Row(14, List.of(new Cell(""), new Cell(""), new Cell(""))));
             rows.add(new Row(22, List.of(new Cell("Mahlzeit", 4), new Cell("gegessen wurde", 4), new Cell("getrunken wurde...", 4))));
@@ -1066,7 +1266,7 @@ public class YazioOverviewApp {
             rows.add(new Row(22, List.of(new Cell("Gesamt:", 6), new Cell(report.total().inline(), 6), new Cell("", 6))));
             rows.add(new Row(18, List.of(new Cell(""), new Cell(""), new Cell(""))));
             rows.add(new Row(24, List.of(new Cell("Sport:", 2), new Cell(""), new Cell(""))));
-            rows.add(new Row(24, List.of(new Cell("Besonderheiten an diesem Tag:", 2), new Cell(""), new Cell(""))));
+            rows.add(new Row(24, List.of(new Cell("Besonderheiten an diesem Tag:", 2), new Cell(report.note() == null ? "" : report.note(), 2), new Cell(""))));
 
             StringBuilder xml = new StringBuilder("""
                     <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -1236,8 +1436,8 @@ public class YazioOverviewApp {
             List<String> pages = new ArrayList<>();
             Page page = new Page();
             page.title("Meine Tagesübersicht", 40, 808);
-            page.boldAt("Name: ____________________", 40, 758, 12);
-            page.boldAt("Geb. Datum: ____________________", 318, 758, 12);
+            page.boldAt("Name: " + lineValue(report.settings().name(), 22), 40, 758, 12);
+            page.boldAt("Geb. Datum: " + lineValue(report.settings().birthDate(), 18), 318, 758, 12);
             page.boldAt("Datum:", 40, 732, 12);
             page.boldAt(report.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")), 110, 732, 12);
             page.boldAt("Wochentag:", 318, 732, 12);
@@ -1269,6 +1469,7 @@ public class YazioOverviewApp {
 
             page.boldAt("Sport:", 40, y - 42, 12);
             page.boldAt("Besonderheiten an diesem Tag:", 40, y - 84, 12);
+            page.textAt("F1", report.note() == null ? "" : report.note(), 245, y - 84, 10);
             pages.add(page.finish());
             return pages;
         }
@@ -1334,6 +1535,196 @@ public class YazioOverviewApp {
             private static String pdf(String text) {
                 return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)");
             }
+        }
+    }
+
+    record YazioSyncResult(Map<String, Object> days, Map<String, Object> products) {
+    }
+
+    static final class YazioClient {
+        private static final String BASE = "https://yzapi.yazio.com";
+        private static final String CLIENT_ID = "1_4hiybetvfksgw40o0sog4s884kwc840wwso8go4k8c04goo4c";
+        private static final String CLIENT_SECRET = "6rok2m65xuskgkgogw40wkkk8sw0osg84s8cggsc4woos4s8o";
+
+        private final HttpClient http = HttpClient.newHttpClient();
+        private String token;
+
+        YazioSyncResult sync(String username, String password, LocalDate from, LocalDate to) throws Exception {
+            token = login(username, password);
+            Map<LocalDate, Map<String, Object>> daily = loadDailySummaries(from, to);
+            Set<LocalDate> dates = new LinkedHashSet<>(daily.keySet());
+            if (dates.isEmpty()) {
+                for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+                    dates.add(date);
+                }
+            }
+
+            Map<String, Object> days = new TreeMap<>();
+            for (LocalDate date : dates) {
+                if (date.isBefore(from) || date.isAfter(to)) {
+                    continue;
+                }
+                Map<String, Object> consumed = objectOrEmpty(get("/v9/user/consumed-items?date=" + date));
+                Map<String, Object> goals = objectOrEmpty(get("/v9/user/goals?date=" + date));
+                Map<String, Object> exercises = objectOrEmpty(get("/v9/user/exercises?date=" + date));
+                Map<String, Object> water = objectOrEmpty(get("/v9/user/water-intake?date=" + date));
+                Map<String, Object> day = new LinkedHashMap<>();
+                day.put("daily", daily.getOrDefault(date, fallbackDaily(date, consumed)));
+                day.put("consumed", consumed);
+                day.put("goals", goals);
+                day.put("exercises", exercises);
+                day.put("water", water);
+                if (daily.containsKey(date) || hasConsumedEntries(consumed)) {
+                    days.put(date.toString(), day);
+                }
+            }
+
+            Set<String> productIds = new LinkedHashSet<>();
+            collectProductIds(days, productIds);
+            Map<String, Object> products = new LinkedHashMap<>();
+            for (String productId : productIds) {
+                products.put(productId, objectOrEmpty(get("/v9/products/" + encode(productId))));
+            }
+            return new YazioSyncResult(days, products);
+        }
+
+        private String login(String username, String password) throws Exception {
+            String body = "{"
+                    + "\"client_id\":\"" + CLIENT_ID + "\","
+                    + "\"client_secret\":\"" + CLIENT_SECRET + "\","
+                    + "\"username\":\"" + jsonEscape(username) + "\","
+                    + "\"password\":\"" + jsonEscape(password) + "\","
+                    + "\"grant_type\":\"password\""
+                    + "}";
+            String response = request("POST", "/v9/oauth/token", body);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> parsed = (Map<String, Object>) new JsonParser(response).parse();
+            String accessToken = str(parsed.get("access_token"));
+            if (accessToken == null || accessToken.isBlank()) {
+                throw new IOException("Login-Antwort enthält kein access_token.");
+            }
+            return accessToken;
+        }
+
+        private Map<LocalDate, Map<String, Object>> loadDailySummaries(LocalDate from, LocalDate to) throws Exception {
+            Map<LocalDate, Map<String, Object>> result = new TreeMap<>();
+            LocalDate cursor = from.withDayOfMonth(1);
+            LocalDate last = to.withDayOfMonth(1);
+            while (!cursor.isAfter(last)) {
+                LocalDate monthEnd = cursor.plusMonths(1).minusDays(1);
+                String response = get("/v9/user/consumed-items/nutrients-daily?start=" + cursor + "&end=" + monthEnd);
+                extractDailySummaries(new JsonParser(response).parse(), result);
+                cursor = cursor.plusMonths(1);
+            }
+            result.entrySet().removeIf(entry -> entry.getKey().isBefore(from) || entry.getKey().isAfter(to));
+            return result;
+        }
+
+        @SuppressWarnings("unchecked")
+        private static void extractDailySummaries(Object node, Map<LocalDate, Map<String, Object>> result) {
+            if (node instanceof Map<?, ?> raw) {
+                Map<String, Object> map = (Map<String, Object>) raw;
+                LocalDate date = parseDate(str(map.get("date")));
+                if (date != null && (map.containsKey("energy") || map.containsKey("energy_goal"))) {
+                    result.put(date, normalizeDaily(date, map));
+                }
+                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                    LocalDate keyDate = parseDate(entry.getKey());
+                    if (keyDate != null && entry.getValue() instanceof Map<?, ?> valueRaw) {
+                        result.put(keyDate, normalizeDaily(keyDate, (Map<String, Object>) valueRaw));
+                    } else {
+                        extractDailySummaries(entry.getValue(), result);
+                    }
+                }
+            } else if (node instanceof List<?> list) {
+                list.forEach(item -> extractDailySummaries(item, result));
+            }
+        }
+
+        private static Map<String, Object> normalizeDaily(LocalDate date, Map<String, Object> map) {
+            Map<String, Object> daily = new LinkedHashMap<>();
+            daily.put("date", date.toString());
+            daily.put("energy", dbl(map.get("energy")));
+            daily.put("carb", dbl(map.containsKey("carb") ? map.get("carb") : map.get("nutrient.carb")));
+            daily.put("protein", dbl(map.containsKey("protein") ? map.get("protein") : map.get("nutrient.protein")));
+            daily.put("fat", dbl(map.containsKey("fat") ? map.get("fat") : map.get("nutrient.fat")));
+            daily.put("energy_goal", dbl(map.containsKey("energy_goal") ? map.get("energy_goal") : map.get("energy.energy.goal")));
+            return daily;
+        }
+
+        private static Map<String, Object> fallbackDaily(LocalDate date, Map<String, Object> consumed) {
+            Map<String, Object> daily = new LinkedHashMap<>();
+            daily.put("date", date.toString());
+            daily.put("energy", 0);
+            daily.put("carb", 0);
+            daily.put("protein", 0);
+            daily.put("fat", 0);
+            daily.put("energy_goal", 0);
+            return daily;
+        }
+
+        private static boolean hasConsumedEntries(Map<String, Object> consumed) {
+            for (String key : List.of("products", "recipe_portions", "simple_products")) {
+                Object value = consumed.get(key);
+                if (value instanceof List<?> list && !list.isEmpty()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @SuppressWarnings("unchecked")
+        private static void collectProductIds(Object node, Set<String> ids) {
+            if (node instanceof Map<?, ?> raw) {
+                Map<String, Object> map = (Map<String, Object>) raw;
+                String productId = str(map.get("product_id"));
+                if (productId != null && !productId.isBlank()) {
+                    ids.add(productId);
+                }
+                map.values().forEach(value -> collectProductIds(value, ids));
+            } else if (node instanceof List<?> list) {
+                list.forEach(value -> collectProductIds(value, ids));
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        private static Map<String, Object> objectOrEmpty(String json) {
+            Object parsed = new JsonParser(json).parse();
+            if (parsed instanceof Map<?, ?> map) {
+                return (Map<String, Object>) map;
+            }
+            return new LinkedHashMap<>();
+        }
+
+        private String get(String path) throws Exception {
+            return request("GET", path, null);
+        }
+
+        private String request(String method, String path, String body) throws Exception {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(BASE + path))
+                    .header("Accept", "application/json");
+            if (token != null && !token.isBlank()) {
+                builder.header("Authorization", "Bearer " + token);
+            }
+            if (body == null) {
+                builder.method(method, HttpRequest.BodyPublishers.noBody());
+            } else {
+                builder.header("Content-Type", "application/json");
+                builder.method(method, HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+            }
+            HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IOException(method + " " + path + " lieferte HTTP " + response.statusCode());
+            }
+            return response.body();
+        }
+
+        private static String encode(String value) {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        }
+
+        private static String jsonEscape(String value) {
+            return value.replace("\\", "\\\\").replace("\"", "\\\"");
         }
     }
 
