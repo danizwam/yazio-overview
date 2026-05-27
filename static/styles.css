@@ -81,16 +81,73 @@ button.secondary:hover,
   margin-bottom: 24px;
 }
 
-.main-nav {
+.menu-bar {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 18px;
 }
 
+.menu-toggle {
+  display: inline-grid;
+  gap: 4px;
+  align-content: center;
+  justify-content: center;
+  width: 46px;
+  min-width: 46px;
+  padding: 0;
+}
+
+.menu-toggle span {
+  display: block;
+  width: 19px;
+  height: 2px;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.current-page-label {
+  color: var(--surface-strong);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.main-nav {
+  position: absolute;
+  z-index: 20;
+  display: none;
+  width: min(320px, calc(100vw - 32px));
+  margin-top: -8px;
+  padding: 8px;
+  border: 1px solid rgba(222, 217, 208, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.main-nav.open {
+  display: grid;
+  gap: 4px;
+}
+
+.main-nav hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 6px 0;
+}
+
 .nav-tab {
-  background: #edf1ef;
+  justify-content: flex-start;
+  width: 100%;
+  background: transparent;
   color: var(--muted);
+  text-align: left;
+}
+
+.nav-tab:hover {
+  background: #edf1ef;
 }
 
 .nav-tab.active {

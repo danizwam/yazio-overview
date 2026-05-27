@@ -19,12 +19,23 @@
       </div>
     </section>
 
-    <nav class="main-nav" aria-label="Bereiche">
+    <section class="menu-bar">
+      <button id="menuToggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="mainNav" aria-label="Menü öffnen">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <span id="currentPageLabel" class="current-page-label">Auswertung</span>
+    </section>
+
+    <nav id="mainNav" class="main-nav" aria-label="Bereiche">
       <button class="nav-tab active" type="button" data-page="analysis">Auswertung</button>
       <button class="nav-tab" type="button" data-page="insights">Listen</button>
-      <button class="nav-tab" type="button" data-page="sync">Yazio Import</button>
+      <hr>
       <button class="nav-tab" type="button" data-page="profile">Profil</button>
-      <button class="nav-tab" type="button" data-page="admin">Admin</button>
+      <button class="nav-tab" type="button" data-page="sync">Yazio Import</button>
+      <button class="nav-tab" type="button" data-page="admin">manueller Import von JSON</button>
+      <hr>
       <button class="nav-tab" type="button" data-page="help">Hilfe</button>
     </nav>
 
@@ -91,11 +102,11 @@
         <div>
           <p class="eyebrow">Erster Start</p>
           <h2>Noch keine Yazio-Daten vorhanden</h2>
-          <p>Synchronisiere deine Daten direkt aus Yazio oder lade vorhandene JSON-Dateien im Admin-Bereich hoch. Danach kannst du hier einzelne Tage und Zeiträume auswerten.</p>
+          <p>Synchronisiere deine Daten direkt aus Yazio oder lade vorhandene JSON-Dateien im Bereich manueller Import von JSON hoch. Danach kannst du hier einzelne Tage und Zeiträume auswerten.</p>
         </div>
         <div class="empty-actions">
           <button type="button" data-goto="sync">Yazio Import öffnen</button>
-          <button type="button" class="secondary" data-goto="admin">JSON hochladen</button>
+          <button type="button" class="secondary" data-goto="admin">JSON manuell importieren</button>
           <button type="button" class="secondary" data-goto="help">Leitfaden lesen</button>
         </div>
       </section>
@@ -200,7 +211,7 @@
 
     <section id="page-admin" class="page-section">
       <section class="panel">
-        <h2>Admin</h2>
+        <h2>manueller Import von JSON</h2>
         <form id="uploadForm" class="settings-form">
           <label>
             <span>products.json <button class="info-tip" type="button" title="Produktdaten aus Yazio. Im Normalfall brauchst du das nur für manuelle Tests oder Altimporte.">?</button></span>
@@ -232,15 +243,19 @@
             <p>Auf der Startseite wählst du einen Tag oder Zeitraum. Die Mahlzeiten werden mit Bestandteilen und Makros angezeigt und lassen sich kopieren.</p>
           </article>
           <article>
-            <h3>4. Exportieren</h3>
+            <h3>4. Listen nutzen</h3>
+            <p>Im Bereich Listen findest du Produktsuche, Top-100-Lebensmittel, Tage nach Kalorien oder Protein sowie Verdichtungen nach Mahlzeiten, Wochentagen und Monaten. Ein Klick auf ein Lebensmittel zeigt die Verzehrtage; ein Klick auf einen Tag öffnet die Tagesübersicht in einem neuen Tab.</p>
+          </article>
+          <article>
+            <h3>5. Exportieren</h3>
             <p>Excel und PDF übernehmen Name, Geburtsdatum und die Besonderheiten des Tages. Bei Zeiträumen bekommt jeder Tag im Excel eine eigene Tabelle.</p>
           </article>
           <article>
-            <h3>5. Admin-Bereich</h3>
-            <p>Der manuelle Upload ist für vorhandene products.json und days.json gedacht. Für den normalen Betrieb ist der direkte Yazio Import besser geeignet.</p>
+            <h3>6. Manueller Import</h3>
+            <p>Der manuelle Import von JSON ist für vorhandene products.json und days.json gedacht. Für den normalen Betrieb ist der direkte Yazio Import besser geeignet.</p>
           </article>
           <article>
-            <h3>6. Besonderheiten</h3>
+            <h3>7. Besonderheiten</h3>
             <p>Notizen pro Tag bleiben lokal erhalten und überleben neue Yazio-Imports, weil sie getrennt von den Yazio-Daten gespeichert werden.</p>
           </article>
         </div>

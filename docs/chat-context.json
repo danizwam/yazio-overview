@@ -32,6 +32,7 @@
     "Local personal settings for name and birth date",
     "Local per-day notes for export field 'Besonderheiten an diesem Tag'",
     "Tabbed UI sections for analysis, Yazio import, profile, and admin",
+    "Burger menu navigation ordered as analysis, lists, profile, Yazio import, manual JSON import, help",
     "Help page, tooltips, and first-start guidance for empty data stores",
     "Yazio import runs as a background job with pollable status and a scrollable UI log panel",
     "Codebase refactored into packages: export, json, model, service, sync",
