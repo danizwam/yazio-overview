@@ -302,6 +302,38 @@ dd {
   background: #e5f2ed;
 }
 
+.sync-log-panel {
+  margin-top: 18px;
+  border: 1px solid #cfe2dc;
+  border-radius: 8px;
+  background: #f8fbfa;
+  overflow: hidden;
+}
+
+.sync-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid #dce8e3;
+  color: var(--accent-strong);
+}
+
+.sync-log {
+  height: 260px;
+  margin: 0;
+  overflow: auto;
+  padding: 12px 14px;
+  background: #fbfdfc;
+  color: #21312d;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 .hidden {
   display: none !important;
 }
