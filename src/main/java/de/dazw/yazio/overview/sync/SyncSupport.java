@@ -1,6 +1,6 @@
-package de.yazio.overview.sync;
+package de.dazw.yazio.overview.sync;
 
-import de.yazio.overview.json.JsonParser;
+import de.dazw.yazio.overview.json.JsonParser;
 
 import java.io.IOException;
 import java.net.URI;

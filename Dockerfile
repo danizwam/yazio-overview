@@ -11,4 +11,4 @@ COPY --from=build /app/out ./out
 COPY static ./static
 VOLUME ["/app/data"]
 EXPOSE 8080
-CMD ["java", "-cp", "out", "de.yazio.overview.YazioOverviewApp"]
+CMD ["java", "-cp", "out", "de.dazw.yazio.overview.YazioOverviewApp"]

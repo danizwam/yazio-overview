@@ -1,6 +1,6 @@
-package de.yazio.overview.export;
+package de.dazw.yazio.overview.export;
 
-import de.yazio.overview.model.Domain.*;
+import de.dazw.yazio.overview.model.Domain.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static de.yazio.overview.model.Labels.*;
+import static de.dazw.yazio.overview.model.Labels.*;
 
 /** Exportiert Tagesberichte im Office-Format. */
 public final class XlsxExport {

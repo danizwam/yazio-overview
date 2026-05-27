@@ -14,7 +14,7 @@ Danach ist die Oberfläche unter <http://localhost:8080> erreichbar. Die persist
 
 ```bash
 javac -encoding UTF-8 -d out $(find src/main/java -name "*.java")
-java -cp out de.yazio.overview.YazioOverviewApp
+java -cp out de.dazw.yazio.overview.YazioOverviewApp
 ```
 
 Unter PowerShell:
@@ -22,14 +22,14 @@ Unter PowerShell:
 ```powershell
 $files = Get-ChildItem -Recurse -Filter *.java src/main/java | ForEach-Object FullName
 javac -encoding UTF-8 -d out $files
-java -cp out de.yazio.overview.YazioOverviewApp
+java -cp out de.dazw.yazio.overview.YazioOverviewApp
 ```
 
 Optional kann der Datenordner überschrieben werden:
 
 ```powershell
 $env:YAZIO_DATA_DIR = "C:\yazio-data"
-java -cp out de.yazio.overview.YazioOverviewApp
+java -cp out de.dazw.yazio.overview.YazioOverviewApp
 ```
 
 ## Datenhaltung
@@ -86,9 +86,9 @@ Damit muss nicht jedes Mal der komplette historische Zeitraum neu geladen werden
 
 ## Code-Struktur
 
-- `de.yazio.overview`: HTTP-Server, API-Handler und lokale Import-Konsolidierung
-- `de.yazio.overview.export`: Excel- und PDF-Export
-- `de.yazio.overview.json`: kleiner JSON-Parser/-Writer ohne externe Abhängigkeiten
-- `de.yazio.overview.model`: Domain-Records und Anzeigeformatierung
-- `de.yazio.overview.service`: Tagesauswertung, Listen und Makroberechnung
-- `de.yazio.overview.sync`: Yazio-API-Sync und Fortschrittsstatus
+- `de.dazw.yazio.overview`: HTTP-Server, API-Handler und lokale Import-Konsolidierung
+- `de.dazw.yazio.overview.export`: Excel- und PDF-Export
+- `de.dazw.yazio.overview.json`: kleiner JSON-Parser/-Writer ohne externe Abhängigkeiten
+- `de.dazw.yazio.overview.model`: Domain-Records und Anzeigeformatierung
+- `de.dazw.yazio.overview.service`: Tagesauswertung, Listen und Makroberechnung
+- `de.dazw.yazio.overview.sync`: Yazio-API-Sync und Fortschrittsstatus

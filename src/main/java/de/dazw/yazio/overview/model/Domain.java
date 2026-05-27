@@ -1,4 +1,4 @@
-package de.yazio.overview.model;
+package de.dazw.yazio.overview.model;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;

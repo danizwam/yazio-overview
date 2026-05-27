@@ -1,6 +1,6 @@
-package de.yazio.overview.service;
+package de.dazw.yazio.overview.service;
 
-import de.yazio.overview.model.Domain.*;
+import de.dazw.yazio.overview.model.Domain.*;
 
 import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
@@ -18,8 +18,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import static de.yazio.overview.model.Labels.format;
-import static de.yazio.overview.model.Labels.mealLabel;
+import static de.dazw.yazio.overview.model.Labels.format;
+import static de.dazw.yazio.overview.model.Labels.mealLabel;
 
 /**
  * Erstellt produkt- und tagesbezogene Verdichtungen für die Listenansicht.

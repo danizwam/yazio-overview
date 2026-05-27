@@ -1,6 +1,6 @@
-package de.yazio.overview.export;
+package de.dazw.yazio.overview.export;
 
-import de.yazio.overview.model.Domain.*;
+import de.dazw.yazio.overview.model.Domain.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import static de.yazio.overview.model.Labels.*;
+import static de.dazw.yazio.overview.model.Labels.*;
 
 /** Exportiert Tagesberichte als schlichtes PDF. */
 public final class PdfExport {
