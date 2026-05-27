@@ -8,6 +8,7 @@ import de.yazio.overview.export.XlsxExport;
 import de.yazio.overview.json.JsonParser;
 import de.yazio.overview.json.JsonWriter;
 import de.yazio.overview.model.Domain.*;
+import de.yazio.overview.service.InsightService;
 import de.yazio.overview.service.ReportService;
 import de.yazio.overview.sync.SyncSupport.*;
 
@@ -69,6 +70,7 @@ public class YazioOverviewApp {
     private final Object lock = new Object();
     private final SyncState syncState = new SyncState();
     private final ReportService reportService = new ReportService();
+    private final InsightService insightService = new InsightService();
     private DataStore store = DataStore.empty();
 
     public static void main(String[] args) throws Exception {
@@ -85,6 +87,12 @@ public class YazioOverviewApp {
         server.createContext("/api/note", app::note);
         server.createContext("/api/sync/status", app::syncStatus);
         server.createContext("/api/sync", app::sync);
+        server.createContext("/api/insights/products", app::insightProducts);
+        server.createContext("/api/insights/product-days", app::insightProductDays);
+        server.createContext("/api/insights/days", app::insightDays);
+        server.createContext("/api/insights/meals", app::insightMeals);
+        server.createContext("/api/insights/weekdays", app::insightWeekdays);
+        server.createContext("/api/insights/months", app::insightMonths);
         server.createContext("/api/export/xlsx", app::exportXlsx);
         server.createContext("/api/export/pdf", app::exportPdf);
         server.createContext("/", app::staticFile);
@@ -343,6 +351,78 @@ public class YazioOverviewApp {
         send(exchange, 200, Map.of("days", reports));
     }
 
+    private void insightProducts(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        Map<String, String> query = query(exchange);
+        send(exchange, 200, Map.of("items", insightService.products(
+                allReports(),
+                query.getOrDefault("query", ""),
+                query.getOrDefault("sort", "amount"),
+                intQuery(query.get("limit"), 100, 1, 500)
+        )));
+    }
+
+    private void insightProductDays(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        Map<String, String> query = query(exchange);
+        String key = query.get("key");
+        if (key == null || key.isBlank()) {
+            send(exchange, 400, Map.of("error", "Bitte ein Lebensmittel auswählen."));
+            return;
+        }
+        send(exchange, 200, Map.of("days", insightService.productDays(
+                allReports(),
+                key,
+                query.getOrDefault("sort", "amount")
+        )));
+    }
+
+    private void insightDays(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        Map<String, String> query = query(exchange);
+        send(exchange, 200, Map.of("days", insightService.days(
+                allReports(),
+                query.getOrDefault("sort", "energy"),
+                query.getOrDefault("dir", "desc")
+        )));
+    }
+
+    private void insightMeals(HttpExchange exchange) throws IOException {
+        sendInsightMacroList(exchange, "meals");
+    }
+
+    private void insightWeekdays(HttpExchange exchange) throws IOException {
+        sendInsightMacroList(exchange, "weekdays");
+    }
+
+    private void insightMonths(HttpExchange exchange) throws IOException {
+        sendInsightMacroList(exchange, "months");
+    }
+
+    private void sendInsightMacroList(HttpExchange exchange, String type) throws IOException {
+        if (!exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        Map<String, String> query = query(exchange);
+        String sort = query.getOrDefault("sort", "energy");
+        List<Map<String, Object>> items = switch (type) {
+            case "weekdays" -> insightService.weekdays(allReports(), sort);
+            case "months" -> insightService.months(allReports(), sort);
+            default -> insightService.meals(allReports(), sort);
+        };
+        send(exchange, 200, Map.of("items", items));
+    }
+
     private void exportXlsx(HttpExchange exchange) throws IOException {
         if (!exchange.getRequestMethod().equals("GET")) {
             send(exchange, 405, Map.of("error", "Method not allowed"));
@@ -426,6 +506,18 @@ public class YazioOverviewApp {
 
     private DayReport buildDayReport(LocalDate date) {
         return reportService.buildDayReport(date, snapshot());
+    }
+
+    private List<DayReport> allReports() {
+        DataStore snapshot = snapshot();
+        List<DayReport> reports = new ArrayList<>();
+        for (LocalDate date : snapshot.days().keySet()) {
+            DayReport report = reportService.buildDayReport(date, snapshot);
+            if (report != null) {
+                reports.add(report);
+            }
+        }
+        return reports;
     }
 
     private SyncRecommendation syncRecommendation() {
@@ -827,6 +919,15 @@ public class YazioOverviewApp {
             return raw == null ? null : LocalDate.parse(raw);
         } catch (DateTimeParseException ex) {
             return null;
+        }
+    }
+
+    private static int intQuery(String raw, int fallback, int min, int max) {
+        try {
+            int value = raw == null ? fallback : Integer.parseInt(raw);
+            return Math.max(min, Math.min(max, value));
+        } catch (NumberFormatException ex) {
+            return fallback;
         }
     }
 

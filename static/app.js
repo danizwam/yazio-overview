@@ -1,6 +1,44 @@
 const state = {
   mode: "single",
-  status: null
+  status: null,
+  selectedProduct: null
+};
+
+const insightStorageKey = "yazioOverview.insightSelection";
+
+const insightSorts = {
+  search: [
+    ["amount", "Menge absteigend"],
+    ["calories", "Kalorien absteigend"],
+    ["protein", "Protein absteigend"],
+    ["name", "Name A-Z"]
+  ],
+  "top-amount": [["amount", "Menge absteigend"]],
+  "top-calories": [["calories", "Kalorien absteigend"]],
+  "top-protein": [["protein", "Protein absteigend"]],
+  "days-calories": [
+    ["energy:desc", "Kalorien absteigend"],
+    ["energy:asc", "Kalorien aufsteigend"]
+  ],
+  "days-protein": [
+    ["protein:desc", "Protein absteigend"],
+    ["protein:asc", "Protein aufsteigend"]
+  ],
+  meals: [
+    ["energy", "Kalorien absteigend"],
+    ["protein", "Protein absteigend"],
+    ["count", "Einträge absteigend"]
+  ],
+  weekdays: [
+    ["energy", "Kalorien absteigend"],
+    ["protein", "Protein absteigend"],
+    ["count", "Tage absteigend"]
+  ],
+  months: [
+    ["energy", "Kalorien absteigend"],
+    ["protein", "Protein absteigend"],
+    ["count", "Tage absteigend"]
+  ]
 };
 
 const els = {
@@ -28,6 +66,17 @@ const els = {
   singleDate: document.querySelector("#singleDate"),
   fromDate: document.querySelector("#fromDate"),
   toDate: document.querySelector("#toDate"),
+  insightForm: document.querySelector("#insightForm"),
+  insightType: document.querySelector("#insightType"),
+  insightSearch: document.querySelector("#insightSearch"),
+  insightSearchLabel: document.querySelector("#insightSearchLabel"),
+  insightSort: document.querySelector("#insightSort"),
+  insightSummary: document.querySelector("#insightSummary"),
+  insightResults: document.querySelector("#insightResults"),
+  productDetail: document.querySelector("#productDetail"),
+  productDetailTitle: document.querySelector("#productDetailTitle"),
+  productDaySort: document.querySelector("#productDaySort"),
+  productDayResults: document.querySelector("#productDayResults"),
   results: document.querySelector("#results"),
   emptyState: document.querySelector("#emptyState"),
   message: document.querySelector("#message"),
@@ -57,6 +106,31 @@ document.querySelectorAll(".tab").forEach((tab) => {
 
 document.querySelectorAll("[data-export]").forEach((button) => {
   button.addEventListener("click", () => exportFile(button.dataset.scope, button.dataset.export));
+});
+
+els.insightType.addEventListener("change", () => {
+  populateInsightSort();
+  persistInsightSelection();
+  clearInsightResults();
+});
+
+els.insightSort.addEventListener("change", () => {
+  persistInsightSelection();
+  loadInsights().catch((error) => showMessage(error.message));
+});
+
+els.insightSearch.addEventListener("input", persistInsightSelection);
+
+els.insightForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  persistInsightSelection();
+  loadInsights().catch((error) => showMessage(error.message));
+});
+
+els.productDaySort.addEventListener("change", () => {
+  if (state.selectedProduct) {
+    loadProductDays(state.selectedProduct).catch((error) => showMessage(error.message));
+  }
 });
 
 document.querySelectorAll(".today-button").forEach((button) => {
@@ -251,6 +325,200 @@ function renderDays(days) {
   }
 }
 
+function restoreInsightSelection() {
+  const saved = JSON.parse(localStorage.getItem(insightStorageKey) ?? "{}");
+  if (saved.type && insightSorts[saved.type]) {
+    els.insightType.value = saved.type;
+  }
+  els.insightSearch.value = saved.search ?? "";
+  populateInsightSort(saved.sort);
+}
+
+function persistInsightSelection() {
+  localStorage.setItem(insightStorageKey, JSON.stringify({
+    type: els.insightType.value,
+    search: els.insightSearch.value,
+    sort: els.insightSort.value
+  }));
+}
+
+function populateInsightSort(preferred) {
+  const options = insightSorts[els.insightType.value] ?? insightSorts.search;
+  els.insightSort.replaceChildren(...options.map(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    return option;
+  }));
+  els.insightSort.value = preferred && options.some(([value]) => value === preferred) ? preferred : options[0][0];
+  els.insightSearchLabel.classList.toggle("hidden", els.insightType.value !== "search");
+}
+
+function clearInsightResults() {
+  els.insightSummary.textContent = "";
+  els.insightResults.replaceChildren();
+  els.productDetail.classList.add("hidden");
+  els.productDayResults.replaceChildren();
+  state.selectedProduct = null;
+}
+
+async function loadInsights() {
+  clearMessage();
+  clearInsightResults();
+  const type = els.insightType.value;
+  if (type.startsWith("top-") || type === "search") {
+    const sort = type === "top-calories" ? "calories" : type === "top-protein" ? "protein" : els.insightSort.value;
+    const params = new URLSearchParams({ sort, limit: "100" });
+    if (type === "search") {
+      params.set("query", els.insightSearch.value);
+    }
+    const payload = await readJson(await fetch(`/api/insights/products?${params}`));
+    renderProductList(payload.items, type === "search" ? "Produktsuche" : "Top 100 Lebensmittel");
+    return;
+  }
+  if (type.startsWith("days-")) {
+    const [sort, dir] = els.insightSort.value.split(":");
+    const payload = await readJson(await fetch(`/api/insights/days?sort=${encodeURIComponent(sort)}&dir=${encodeURIComponent(dir)}`));
+    renderDayRanking(payload.days);
+    return;
+  }
+  const payload = await readJson(await fetch(`/api/insights/${type}?sort=${encodeURIComponent(els.insightSort.value)}`));
+  renderMacroAggregation(payload.items);
+}
+
+function renderProductList(items, title) {
+  els.insightSummary.textContent = `${title}: ${items.length} Einträge`;
+  const table = insightTable(["Lebensmittel", "Menge", "Tage", "Kalorien", "Protein", ""]);
+  const body = table.querySelector("tbody");
+  for (const item of items) {
+    const row = document.createElement("tr");
+    row.append(
+      td(productLabel(item)),
+      td(item.amountText, "number-cell"),
+      td(String(item.dayCount), "number-cell"),
+      td(`${fmt(item.macro.energy)} kcal`, "number-cell"),
+      td(`${fmt(item.macro.protein)} g`, "number-cell"),
+      actionTd("Tage", () => loadProductDays(item))
+    );
+    body.append(row);
+  }
+  els.insightResults.append(table);
+}
+
+async function loadProductDays(item) {
+  state.selectedProduct = item;
+  const params = new URLSearchParams({ key: item.key, sort: els.productDaySort.value });
+  const payload = await readJson(await fetch(`/api/insights/product-days?${params}`));
+  els.productDetail.classList.remove("hidden");
+  els.productDetailTitle.textContent = productLabel(item);
+  const table = insightTable(["Tag", "Menge", "Kalorien", "Protein", "Einträge", ""]);
+  const body = table.querySelector("tbody");
+  for (const day of payload.days) {
+    const row = document.createElement("tr");
+    row.append(
+      td(formatDate(day.date)),
+      td(day.amountText, "number-cell"),
+      td(`${fmt(day.macro.energy)} kcal`, "number-cell"),
+      td(`${fmt(day.macro.protein)} g`, "number-cell"),
+      td(String(day.count), "number-cell"),
+      actionTd("Öffnen", () => openDay(day.date))
+    );
+    body.append(row);
+  }
+  els.productDayResults.replaceChildren(table);
+}
+
+function renderDayRanking(days) {
+  els.insightSummary.textContent = `Tage: ${days.length} Einträge`;
+  const table = insightTable(["Tag", "Kalorien", "KH", "Protein", "Fett", ""]);
+  const body = table.querySelector("tbody");
+  for (const day of days) {
+    const row = document.createElement("tr");
+    row.append(
+      td(formatDate(day.date)),
+      td(`${fmt(day.energy)} kcal`, "number-cell"),
+      td(`${fmt(day.carbs)} g`, "number-cell"),
+      td(`${fmt(day.protein)} g`, "number-cell"),
+      td(`${fmt(day.fat)} g`, "number-cell"),
+      actionTd("Öffnen", () => openDay(day.date))
+    );
+    body.append(row);
+  }
+  els.insightResults.append(table);
+}
+
+function renderMacroAggregation(items) {
+  els.insightSummary.textContent = `${items.length} verdichtete Einträge`;
+  const table = insightTable(["Gruppe", "Einträge", "Gesamt kcal", "Ø kcal", "Ø Protein", "Ø Fett"]);
+  const body = table.querySelector("tbody");
+  for (const item of items) {
+    const row = document.createElement("tr");
+    row.append(
+      td(item.label),
+      td(String(item.count), "number-cell"),
+      td(`${fmt(item.total.energy)} kcal`, "number-cell"),
+      td(`${fmt(item.average.energy)} kcal`, "number-cell"),
+      td(`${fmt(item.average.protein)} g`, "number-cell"),
+      td(`${fmt(item.average.fat)} g`, "number-cell")
+    );
+    body.append(row);
+  }
+  els.insightResults.append(table);
+}
+
+function insightTable(headers) {
+  const table = document.createElement("table");
+  table.className = "insight-table";
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const header of headers) {
+    const th = document.createElement("th");
+    th.textContent = header;
+    headRow.append(th);
+  }
+  head.append(headRow);
+  table.append(head, document.createElement("tbody"));
+  return table;
+}
+
+function td(text, className = "") {
+  const cell = document.createElement("td");
+  cell.textContent = text ?? "";
+  if (className) cell.className = className;
+  return cell;
+}
+
+function actionTd(label, handler) {
+  const cell = document.createElement("td");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "secondary";
+  button.textContent = label;
+  button.addEventListener("click", handler);
+  cell.append(button);
+  return cell;
+}
+
+function productLabel(item) {
+  return item.producer ? `${item.name} · ${item.producer}` : item.name;
+}
+
+function openDay(date) {
+  window.open(`/?date=${encodeURIComponent(date)}`, "_blank", "noopener");
+}
+
+async function openDateFromUrl() {
+  const date = new URLSearchParams(window.location.search).get("date");
+  if (!date) {
+    return;
+  }
+  showPage("analysis");
+  els.singleDate.value = date;
+  const response = await fetch(`/api/day?date=${encodeURIComponent(date)}`);
+  const payload = await readJson(response);
+  renderDays([payload]);
+}
+
 async function saveNote(date, note) {
   try {
     const response = await fetch(`/api/note?date=${encodeURIComponent(date)}`, {
@@ -410,4 +678,7 @@ function fmt(value) {
   }).format(rounded);
 }
 
-loadStatus().catch((error) => showMessage(error.message));
+restoreInsightSelection();
+loadStatus()
+  .then(openDateFromUrl)
+  .catch((error) => showMessage(error.message));
