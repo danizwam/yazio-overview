@@ -52,7 +52,8 @@ button:active {
 
 button.secondary,
 .copy-day,
-.copy-meal {
+.copy-meal,
+.info-tip {
   background: #eef5f2;
   color: var(--accent-strong);
   border: 1px solid #cfe2dc;
@@ -60,7 +61,8 @@ button.secondary,
 
 button.secondary:hover,
 .copy-day:hover,
-.copy-meal:hover {
+.copy-meal:hover,
+.info-tip:hover {
   background: #dceee8;
 }
 
@@ -354,6 +356,75 @@ dd {
   margin-top: 18px;
 }
 
+.empty-state {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid #cfe2dc;
+  border-radius: 8px;
+  background: #f8fbfa;
+}
+
+.empty-state h2 {
+  margin-bottom: 8px;
+}
+
+.empty-state p:last-child {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.info-tip {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin-left: 5px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  line-height: 1;
+  vertical-align: text-bottom;
+}
+
+.help-panel h2 {
+  margin-bottom: 16px;
+}
+
+.help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.help-grid article {
+  border: 1px solid #e5ece8;
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 16px;
+}
+
+.help-grid h3 {
+  margin-bottom: 8px;
+}
+
+.help-grid p {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
 .day-card {
   border-radius: 8px;
   padding: 22px;
@@ -469,8 +540,18 @@ dd {
   .analysis-layout,
   .query-form,
   #singleForm,
-  .settings-form {
+  .settings-form,
+  .empty-state,
+  .help-grid {
     grid-template-columns: 1fr;
+  }
+
+  .empty-actions {
+    justify-content: stretch;
+  }
+
+  .empty-actions button {
+    width: 100%;
   }
 
   .food-row {
