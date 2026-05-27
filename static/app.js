@@ -42,6 +42,9 @@ const insightSorts = {
 };
 
 const els = {
+  menuToggle: document.querySelector("#menuToggle"),
+  mainNav: document.querySelector("#mainNav"),
+  currentPageLabel: document.querySelector("#currentPageLabel"),
   statusText: document.querySelector("#statusText"),
   statusDot: document.querySelector(".status-dot"),
   productCount: document.querySelector("#productCount"),
@@ -86,6 +89,22 @@ const els = {
 
 document.querySelectorAll(".nav-tab").forEach((tab) => {
   tab.addEventListener("click", () => showPage(tab.dataset.page));
+});
+
+els.menuToggle.addEventListener("click", () => {
+  const isOpen = els.mainNav.classList.toggle("open");
+  els.menuToggle.setAttribute("aria-expanded", String(isOpen));
+  els.menuToggle.setAttribute("aria-label", isOpen ? "Menü schließen" : "Menü öffnen");
+});
+
+document.addEventListener("click", (event) => {
+  if (!els.mainNav.classList.contains("open")) {
+    return;
+  }
+  if (els.mainNav.contains(event.target) || els.menuToggle.contains(event.target)) {
+    return;
+  }
+  closeMenu();
 });
 
 document.querySelectorAll("[data-goto]").forEach((button) => {
@@ -656,9 +675,26 @@ function clearMessage() {
 }
 
 function showPage(pageName) {
-  document.querySelectorAll(".nav-tab").forEach((item) => item.classList.toggle("active", item.dataset.page === pageName));
+  let label = "";
+  document.querySelectorAll(".nav-tab").forEach((item) => {
+    const active = item.dataset.page === pageName;
+    item.classList.toggle("active", active);
+    if (active) {
+      label = item.textContent.trim();
+    }
+  });
   document.querySelectorAll(".page-section").forEach((page) => page.classList.toggle("active", page.id === `page-${pageName}`));
+  if (label) {
+    els.currentPageLabel.textContent = label;
+  }
+  closeMenu();
   clearMessage();
+}
+
+function closeMenu() {
+  els.mainNav.classList.remove("open");
+  els.menuToggle.setAttribute("aria-expanded", "false");
+  els.menuToggle.setAttribute("aria-label", "Menü öffnen");
 }
 
 async function readJson(response) {
