@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -55,6 +56,8 @@ public class YazioOverviewApp {
     private static final Path DAYS_FILE = DATA_DIR.resolve("days.json");
     private static final Path SETTINGS_FILE = DATA_DIR.resolve("settings.json");
     private static final Path NOTES_FILE = DATA_DIR.resolve("notes.json");
+    private static final Path IMPORTS_DIR = DATA_DIR.resolve("imports");
+    private static final int DEFAULT_SYNC_LOOKBACK_DAYS = 14;
     private static final Map<String, String> CONTENT_TYPES = Map.of(
             ".html", "text/html; charset=utf-8",
             ".css", "text/css; charset=utf-8",
@@ -124,6 +127,10 @@ public class YazioOverviewApp {
         body.put("dayCount", snapshot.days().size());
         body.put("firstDate", snapshot.firstDate().map(LocalDate::toString).orElse(null));
         body.put("lastDate", snapshot.lastDate().map(LocalDate::toString).orElse(null));
+        SyncRecommendation recommendation = syncRecommendation();
+        body.put("recommendedSyncFrom", recommendation.from().toString());
+        body.put("recommendedSyncTo", recommendation.to().toString());
+        body.put("oldestIncompleteDay", recommendation.oldestIncompleteDay().map(LocalDate::toString).orElse(null));
         body.put("settings", snapshot.settings().publicMap());
         body.put("error", snapshot.error());
         send(exchange, 200, body);
@@ -234,12 +241,17 @@ public class YazioOverviewApp {
         try {
             syncState.log("Starte Yazio-Synchronisierung für " + from + " bis " + to + ".");
             YazioSyncResult result = new YazioClient(syncState::log).sync(username, password, from, to);
-            syncState.log("Speichere days.json und products.json lokal.");
+            syncState.log("Speichere Import-Snapshot lokal.");
             Files.createDirectories(DATA_DIR);
-            Files.writeString(DAYS_FILE, JsonWriter.write(result.days()), StandardCharsets.UTF_8);
-            Files.writeString(PRODUCTS_FILE, JsonWriter.write(result.products()), StandardCharsets.UTF_8);
+            Map<String, Object> currentDays = readJsonObject(DAYS_FILE);
+            Map<String, Object> currentProducts = readJsonObject(PRODUCTS_FILE);
+            writeImportSnapshot(result, from, to);
+            syncState.log("Konsolidiere Import-Historie.");
+            ConsolidatedImport consolidated = consolidateImports(currentDays, currentProducts);
+            Files.writeString(DAYS_FILE, JsonWriter.write(consolidated.days()), StandardCharsets.UTF_8);
+            Files.writeString(PRODUCTS_FILE, JsonWriter.write(consolidated.products()), StandardCharsets.UTF_8);
             reload();
-            syncState.success(result.days().size(), result.products().size());
+            syncState.success(consolidated.days().size(), consolidated.products().size());
         } catch (Exception ex) {
             syncState.fail(ex.getMessage());
         }
@@ -414,6 +426,164 @@ public class YazioOverviewApp {
 
     private DayReport buildDayReport(LocalDate date) {
         return reportService.buildDayReport(date, snapshot());
+    }
+
+    private SyncRecommendation syncRecommendation() {
+        LocalDate today = LocalDate.now();
+        LocalDate regularStart = today.minusDays(DEFAULT_SYNC_LOOKBACK_DAYS);
+        Optional<LocalDate> oldestIncomplete = oldestIncompleteImportDay();
+        LocalDate recommendedFrom = oldestIncomplete
+                .map(day -> day.isBefore(regularStart) ? day : regularStart)
+                .orElse(regularStart);
+        return new SyncRecommendation(recommendedFrom, today, oldestIncomplete);
+    }
+
+    private Optional<LocalDate> oldestIncompleteImportDay() {
+        Map<LocalDate, Boolean> completeness = importCompleteness();
+        return completeness.entrySet().stream()
+                .filter(entry -> !entry.getValue())
+                .map(Map.Entry::getKey)
+                .min(Comparator.naturalOrder());
+    }
+
+    /**
+     * Ermittelt pro Tag, ob der beste bekannte Import vollständig war.
+     * Vollständige Imports schlagen unvollständige; bei gleicher Qualität gewinnt
+     * der später eingelesene Snapshot.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<LocalDate, Boolean> importCompleteness() {
+        Map<LocalDate, Boolean> completeness = new TreeMap<>();
+        for (Path metadata : importMetadataFiles()) {
+            Map<String, Object> map = readJsonObject(metadata);
+            markCompleteness(completeness, (List<Object>) map.get("incompleteDays"), false);
+            markCompleteness(completeness, (List<Object>) map.get("completeDays"), true);
+        }
+        return completeness;
+    }
+
+    private static void markCompleteness(Map<LocalDate, Boolean> completeness, List<Object> days, boolean complete) {
+        if (days == null) {
+            return;
+        }
+        for (Object raw : days) {
+            LocalDate date = parseDate(str(raw));
+            if (date == null) {
+                continue;
+            }
+            Boolean existing = completeness.get(date);
+            if (complete || existing == null || !existing) {
+                completeness.put(date, complete);
+            }
+        }
+    }
+
+    private void writeImportSnapshot(YazioSyncResult result, LocalDate from, LocalDate to) throws IOException {
+        LocalDateTime importedAt = LocalDateTime.now();
+        String folderName = importedAt.format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        Path importDir = IMPORTS_DIR.resolve(folderName);
+        Files.createDirectories(importDir);
+        Files.writeString(importDir.resolve("days.json"), JsonWriter.write(result.days()), StandardCharsets.UTF_8);
+        Files.writeString(importDir.resolve("products.json"), JsonWriter.write(result.products()), StandardCharsets.UTF_8);
+        Files.writeString(importDir.resolve("metadata.json"),
+                JsonWriter.write(importMetadata(result, from, to, importedAt)), StandardCharsets.UTF_8);
+    }
+
+    private static Map<String, Object> importMetadata(YazioSyncResult result, LocalDate from, LocalDate to,
+                                                      LocalDateTime importedAt) {
+        LocalDate importDate = importedAt.toLocalDate();
+        List<String> completeDays = new ArrayList<>();
+        List<String> incompleteDays = new ArrayList<>();
+        for (String rawDate : result.days().keySet()) {
+            LocalDate date = parseDate(rawDate);
+            if (date == null) {
+                continue;
+            }
+            if (date.isBefore(importDate)) {
+                completeDays.add(date.toString());
+            } else {
+                incompleteDays.add(date.toString());
+            }
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("importedAt", importedAt.toString());
+        metadata.put("from", from.toString());
+        metadata.put("to", to.toString());
+        metadata.put("source", "yazio-api");
+        metadata.put("dayCount", result.days().size());
+        metadata.put("productCount", result.products().size());
+        metadata.put("completeDays", completeDays);
+        metadata.put("incompleteDays", incompleteDays);
+        return metadata;
+    }
+
+    private ConsolidatedImport consolidateImports(Map<String, Object> baseDays, Map<String, Object> baseProducts) {
+        Map<String, Object> days = new TreeMap<>(baseDays);
+        Map<String, Object> products = new LinkedHashMap<>(baseProducts);
+        Map<String, Boolean> dayComplete = new LinkedHashMap<>();
+        LocalDate today = LocalDate.now();
+        for (String rawDate : days.keySet()) {
+            LocalDate date = parseDate(rawDate);
+            dayComplete.put(rawDate, date == null || date.isBefore(today));
+        }
+
+        for (Path metadata : importMetadataFiles()) {
+            Path importDir = metadata.getParent();
+            Map<String, Object> importedProducts = readJsonObject(importDir.resolve("products.json"));
+            products.putAll(importedProducts);
+            Map<String, Object> importedDays = readJsonObject(importDir.resolve("days.json"));
+            Map<LocalDate, Boolean> completeness = importCompletenessFor(metadata);
+            for (Map.Entry<String, Object> entry : importedDays.entrySet()) {
+                LocalDate date = parseDate(entry.getKey());
+                boolean complete = date != null && completeness.getOrDefault(date, date.isBefore(today));
+                boolean existingComplete = dayComplete.getOrDefault(entry.getKey(), false);
+                if (complete || !existingComplete) {
+                    days.put(entry.getKey(), entry.getValue());
+                    dayComplete.put(entry.getKey(), complete);
+                }
+            }
+        }
+        return new ConsolidatedImport(days, products);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<LocalDate, Boolean> importCompletenessFor(Path metadataFile) {
+        Map<String, Object> metadata = readJsonObject(metadataFile);
+        Map<LocalDate, Boolean> completeness = new TreeMap<>();
+        markCompleteness(completeness, (List<Object>) metadata.get("incompleteDays"), false);
+        markCompleteness(completeness, (List<Object>) metadata.get("completeDays"), true);
+        return completeness;
+    }
+
+    private List<Path> importMetadataFiles() {
+        if (!Files.isDirectory(IMPORTS_DIR)) {
+            return List.of();
+        }
+        try (var stream = Files.list(IMPORTS_DIR)) {
+            return stream
+                    .map(path -> path.resolve("metadata.json"))
+                    .filter(Files::isRegularFile)
+                    .sorted()
+                    .toList();
+        } catch (IOException ex) {
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> readJsonObject(Path path) {
+        if (!Files.isRegularFile(path)) {
+            return Map.of();
+        }
+        try {
+            Object root = new JsonParser(Files.readString(path)).parse();
+            if (root instanceof Map<?, ?> raw) {
+                return new LinkedHashMap<>((Map<String, Object>) raw);
+            }
+        } catch (RuntimeException | IOException ignored) {
+            return Map.of();
+        }
+        return Map.of();
     }
 
     @SuppressWarnings("unchecked")
@@ -762,6 +932,12 @@ public class YazioOverviewApp {
             }
         }
         return parts;
+    }
+
+    private record SyncRecommendation(LocalDate from, LocalDate to, Optional<LocalDate> oldestIncompleteDay) {
+    }
+
+    private record ConsolidatedImport(Map<String, Object> days, Map<String, Object> products) {
     }
 
 }
