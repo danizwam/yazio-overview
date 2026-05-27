@@ -27,8 +27,17 @@
     "Local per-day notes for export field 'Besonderheiten an diesem Tag'",
     "Tabbed UI sections for analysis, Yazio import, profile, and admin",
     "Yazio import runs as a background job with pollable status and a scrollable UI log panel",
+    "Codebase refactored into packages: export, json, model, service, sync",
     "Dockerfile and docker-compose.yaml"
   ],
+  "codeStructure": {
+    "de.yazio.overview": "HTTP server and API handlers",
+    "de.yazio.overview.export": "Excel and PDF exports",
+    "de.yazio.overview.json": "Dependency-free JSON parser/writer",
+    "de.yazio.overview.model": "Domain records and display labels",
+    "de.yazio.overview.service": "Day report aggregation and macro calculation",
+    "de.yazio.overview.sync": "Yazio API sync client and sync job status"
+  },
   "exportLayout": {
     "meals": [
       "Frühstück",
@@ -92,7 +101,8 @@
     "Pushing can be done by the user if needed; committing is the important part.",
     "PDF should be portrait, not landscape.",
     "Exports should resemble the provided manual Tagesübersicht screenshot.",
-    "Main page should stay focused on date/range analysis; sync, profile, and manual JSON upload belong in sub-pages."
+    "Main page should stay focused on date/range analysis; sync, profile, and manual JSON upload belong in sub-pages.",
+    "All future commit messages should be in German."
   ],
   "openFollowUps": [
     "Test Yazio sync with real credentials against the live Yazio API.",

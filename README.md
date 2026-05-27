@@ -38,3 +38,12 @@ java -cp out de.yazio.overview.YazioOverviewApp
 - Excel-Export für einen Tag oder Datumsbereich, ein Tabellenblatt pro Tag
 - PDF-Export für einen Tag oder Datumsbereich
 - Responsive Weboberfläche ohne externe Java- oder JavaScript-Abhängigkeiten
+
+## Code-Struktur
+
+- `de.yazio.overview`: HTTP-Server und API-Handler
+- `de.yazio.overview.export`: Excel- und PDF-Export
+- `de.yazio.overview.json`: kleiner JSON-Parser/-Writer ohne externe Abhängigkeiten
+- `de.yazio.overview.model`: Domain-Records und Anzeigeformatierung
+- `de.yazio.overview.service`: Tagesauswertung und Makroberechnung
+- `de.yazio.overview.sync`: Yazio-API-Sync und Fortschrittsstatus
