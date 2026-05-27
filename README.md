@@ -30,6 +30,8 @@ java -cp out de.yazio.overview.YazioOverviewApp
 - Upload und persistente Speicherung von `products.json` und `days.json`
 - Aktualisierung durch erneuten Upload
 - Direkter Yazio-Sync per Benutzername, Passwort und Datumsbereich
+- Inkrementelle Yazio-Imports unter `data/imports`, danach konsolidierte `products.json` und `days.json`
+- Automatischer Sync-Vorschlag vom letzten unvollständigen Tag bis heute, mindestens aber für die letzten 14 Tage
 - Lokale Speicherung persönlicher Exportdaten wie Name und Geburtsdatum
 - Lokale Tagesnotizen für "Besonderheiten an diesem Tag", getrennt von den Yazio-Exportdaten
 - Verknüpfung der Produkt-IDs aus `days.json` mit den Produktdaten aus `products.json`

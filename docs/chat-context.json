@@ -10,7 +10,8 @@
   "sourceFiles": {
     "productsJson": "C:/Users/daniz/Desktop/YazioExport/products.json",
     "daysJson": "C:/Users/daniz/Desktop/YazioExport/days.json",
-    "storedUploads": "data/products.json and data/days.json"
+    "storedUploads": "data/products.json and data/days.json",
+    "incrementalImports": "data/imports/<timestamp>/days.json, products.json, metadata.json"
   },
   "implementedFeatures": [
     "Upload and persistent replacement of products.json and days.json",
@@ -23,6 +24,8 @@
     "Excel export for one day or date range, one sheet per day",
     "PDF export for one day or date range",
     "Direct Yazio sync from username/password and date range",
+    "Incremental Yazio sync snapshots with consolidated products.json and days.json",
+    "Automatic sync recommendation from the oldest incomplete import day or the last 14 days to today",
     "Local personal settings for name and birth date",
     "Local per-day notes for export field 'Besonderheiten an diesem Tag'",
     "Tabbed UI sections for analysis, Yazio import, profile, and admin",
@@ -31,7 +34,7 @@
     "Dockerfile and docker-compose.yaml"
   ],
   "codeStructure": {
-    "de.yazio.overview": "HTTP server and API handlers",
+    "de.yazio.overview": "HTTP server, API handlers, local import snapshot consolidation",
     "de.yazio.overview.export": "Excel and PDF exports",
     "de.yazio.overview.json": "Dependency-free JSON parser/writer",
     "de.yazio.overview.model": "Domain records and display labels",
@@ -86,6 +89,10 @@
     {
       "hash": "f797edd",
       "message": "Refine daily export header and wrapping"
+    },
+    {
+      "hash": "770ba38",
+      "message": "Java-Code in Fachpakete aufteilen"
     }
   ],
   "verificationCommands": [

@@ -185,8 +185,8 @@ async function loadStatus() {
   if (status.lastDate && !els.singleDate.value) els.singleDate.value = status.lastDate;
   if (status.firstDate && !els.fromDate.value) els.fromDate.value = status.firstDate;
   if (status.lastDate && !els.toDate.value) els.toDate.value = status.lastDate;
-  if (!els.syncFromDate.value) els.syncFromDate.value = status.firstDate ?? todayIso();
-  if (!els.syncToDate.value) els.syncToDate.value = todayIso();
+  if (!els.syncFromDate.value) els.syncFromDate.value = status.recommendedSyncFrom ?? todayIso();
+  if (!els.syncToDate.value) els.syncToDate.value = status.recommendedSyncTo ?? todayIso();
   if (status.error) showMessage(status.error);
 }
 
