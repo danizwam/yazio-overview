@@ -10,6 +10,14 @@ const els = {
   dayCount: document.querySelector("#dayCount"),
   dateRange: document.querySelector("#dateRange"),
   uploadForm: document.querySelector("#uploadForm"),
+  syncForm: document.querySelector("#syncForm"),
+  settingsForm: document.querySelector("#settingsForm"),
+  profileName: document.querySelector("#profileName"),
+  birthDate: document.querySelector("#birthDate"),
+  yazioUsername: document.querySelector("#yazioUsername"),
+  yazioPassword: document.querySelector("#yazioPassword"),
+  syncFromDate: document.querySelector("#syncFromDate"),
+  syncToDate: document.querySelector("#syncToDate"),
   singleForm: document.querySelector("#singleForm"),
   rangeForm: document.querySelector("#rangeForm"),
   singleExports: document.querySelector("#singleExports"),
@@ -37,6 +45,50 @@ document.querySelectorAll(".tab").forEach((tab) => {
 
 document.querySelectorAll("[data-export]").forEach((button) => {
   button.addEventListener("click", () => exportFile(button.dataset.scope, button.dataset.export));
+});
+
+els.settingsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const response = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: els.profileName.value,
+        birthDate: els.birthDate.value,
+        username: els.yazioUsername.value,
+        password: els.yazioPassword.value
+      })
+    });
+    await readJson(response);
+    els.yazioPassword.value = "";
+    await loadStatus();
+    showMessage("Einstellungen gespeichert.", "ok");
+  } catch (error) {
+    showMessage(error.message);
+  }
+});
+
+els.syncForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!els.syncFromDate.value || !els.syncToDate.value) return;
+  try {
+    setBusy("Synchronisiere Yazio...");
+    showMessage("Synchronisierung läuft. Das kann je nach Zeitraum etwas dauern.", "ok");
+    const response = await fetch("/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: els.syncFromDate.value,
+        to: els.syncToDate.value
+      })
+    });
+    const payload = await readJson(response);
+    await loadStatus();
+    showMessage(`Synchronisiert: ${payload.dayCount} Tage, ${payload.productCount} Produkte.`, "ok");
+  } catch (error) {
+    showMessage(error.message);
+  }
 });
 
 els.uploadForm.addEventListener("submit", async (event) => {
@@ -106,14 +158,24 @@ async function loadStatus() {
   els.dateRange.textContent = status.firstDate && status.lastDate
     ? `${formatDate(status.firstDate)} bis ${formatDate(status.lastDate)}`
     : "-";
-  for (const input of [els.singleDate, els.fromDate, els.toDate]) {
+  fillSettings(status.settings ?? {});
+  for (const input of [els.singleDate, els.fromDate, els.toDate, els.syncFromDate, els.syncToDate]) {
     if (status.firstDate) input.min = status.firstDate;
     if (status.lastDate) input.max = status.lastDate;
   }
   if (status.lastDate && !els.singleDate.value) els.singleDate.value = status.lastDate;
   if (status.firstDate && !els.fromDate.value) els.fromDate.value = status.firstDate;
   if (status.lastDate && !els.toDate.value) els.toDate.value = status.lastDate;
+  if (status.firstDate && !els.syncFromDate.value) els.syncFromDate.value = status.firstDate;
+  if (status.lastDate && !els.syncToDate.value) els.syncToDate.value = status.lastDate;
   if (status.error) showMessage(status.error);
+}
+
+function fillSettings(settings) {
+  els.profileName.value = settings.name ?? "";
+  els.birthDate.value = settings.birthDate ?? "";
+  els.yazioUsername.value = settings.username ?? "";
+  els.yazioPassword.placeholder = settings.hasPassword ? "Gespeichertes Passwort bleibt erhalten" : "";
 }
 
 function renderDays(days) {
@@ -123,11 +185,28 @@ function renderDays(days) {
     node.querySelector("h2").textContent = formatDate(day.date);
     node.querySelector(".macro-strip").append(...macroPills(day.total));
     node.querySelector(".copy-day").addEventListener("click", () => copy(day.copyText));
+    const note = node.querySelector(".day-note");
+    note.value = day.note ?? "";
+    note.addEventListener("change", () => saveNote(day.date, note.value));
     const meals = node.querySelector(".meals");
     for (const meal of day.meals) {
       meals.append(renderMeal(meal));
     }
     els.results.append(node);
+  }
+}
+
+async function saveNote(date, note) {
+  try {
+    const response = await fetch(`/api/note?date=${encodeURIComponent(date)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note })
+    });
+    await readJson(response);
+    showMessage("Besonderheit gespeichert.", "ok");
+  } catch (error) {
+    showMessage(error.message);
   }
 }
 

@@ -22,6 +22,18 @@
     <section class="workspace">
       <aside class="panel upload-panel">
         <h2>Daten</h2>
+        <form id="syncForm" class="upload-form">
+          <label>
+            <span>Sync von</span>
+            <input id="syncFromDate" type="date" required>
+          </label>
+          <label>
+            <span>Sync bis</span>
+            <input id="syncToDate" type="date" required>
+          </label>
+          <button type="submit">Yazio synchronisieren</button>
+        </form>
+        <hr class="panel-rule">
         <form id="uploadForm" class="upload-form">
           <label>
             <span>products.json</span>
@@ -85,6 +97,31 @@
       </section>
     </section>
 
+    <section class="settings-grid">
+      <section class="panel">
+        <h2>Persönliche Informationen</h2>
+        <form id="settingsForm" class="settings-form">
+          <label>
+            <span>Name</span>
+            <input id="profileName" type="text" autocomplete="name">
+          </label>
+          <label>
+            <span>Geburtsdatum</span>
+            <input id="birthDate" type="date">
+          </label>
+          <label>
+            <span>Yazio Benutzername</span>
+            <input id="yazioUsername" type="email" autocomplete="username">
+          </label>
+          <label>
+            <span>Yazio Passwort</span>
+            <input id="yazioPassword" type="password" autocomplete="current-password">
+          </label>
+          <button type="submit">Einstellungen speichern</button>
+        </form>
+      </section>
+    </section>
+
     <section id="message" class="message hidden"></section>
     <section id="results" class="results"></section>
   </main>
@@ -99,6 +136,10 @@
         <button type="button" class="copy-day">Tag kopieren</button>
       </header>
       <div class="macro-strip"></div>
+      <label class="note-field">
+        <span>Besonderheiten an diesem Tag</span>
+        <input class="day-note" type="text">
+      </label>
       <div class="meals"></div>
     </article>
   </template>
