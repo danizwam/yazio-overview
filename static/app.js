@@ -392,13 +392,19 @@ function renderProductList(items, title) {
   const body = table.querySelector("tbody");
   for (const item of items) {
     const row = document.createElement("tr");
+    row.className = "clickable-row";
+    row.title = "Verzehrtage anzeigen";
+    row.addEventListener("click", () => loadProductDays(item).catch((error) => showMessage(error.message)));
     row.append(
       td(productLabel(item)),
       td(item.amountText, "number-cell"),
       td(String(item.dayCount), "number-cell"),
       td(`${fmt(item.macro.energy)} kcal`, "number-cell"),
       td(`${fmt(item.macro.protein)} g`, "number-cell"),
-      actionTd("Tage", () => loadProductDays(item))
+      actionTd("Tage", (event) => {
+        event.stopPropagation();
+        loadProductDays(item).catch((error) => showMessage(error.message));
+      })
     );
     body.append(row);
   }
@@ -426,6 +432,7 @@ async function loadProductDays(item) {
     body.append(row);
   }
   els.productDayResults.replaceChildren(table);
+  els.productDetail.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderDayRanking(days) {
