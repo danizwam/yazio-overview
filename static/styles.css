@@ -343,6 +343,13 @@ dd {
   margin-top: 14px;
 }
 
+.day-nav-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .export-actions button {
   background: #f8fbfa;
   border: 1px solid #cfe2dc;
@@ -361,6 +368,12 @@ dd {
 
 .today-button:hover {
   background: #e5f2ed;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
 }
 
 .sync-log-panel {
