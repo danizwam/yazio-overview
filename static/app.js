@@ -67,6 +67,8 @@ const els = {
   singleExports: document.querySelector("#singleExports"),
   rangeExports: document.querySelector("#rangeExports"),
   singleDate: document.querySelector("#singleDate"),
+  previousDay: document.querySelector("#previousDay"),
+  nextDay: document.querySelector("#nextDay"),
   fromDate: document.querySelector("#fromDate"),
   toDate: document.querySelector("#toDate"),
   insightForm: document.querySelector("#insightForm"),
@@ -156,8 +158,12 @@ document.querySelectorAll(".today-button").forEach((button) => {
   button.addEventListener("click", () => {
     const target = document.querySelector(`#${button.dataset.target}`);
     if (target) target.value = todayIso();
+    updateDayNavButtons();
   });
 });
+
+els.previousDay.addEventListener("click", () => shiftSingleDay(-1));
+els.nextDay.addEventListener("click", () => shiftSingleDay(1));
 
 els.settingsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -226,16 +232,7 @@ els.uploadForm.addEventListener("submit", async (event) => {
 
 els.singleForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const date = els.singleDate.value;
-  if (!date) return;
-  try {
-    clearMessage();
-    const response = await fetch(`/api/day?date=${encodeURIComponent(date)}`);
-    const payload = await readJson(response);
-    renderDays([payload]);
-  } catch (error) {
-    showMessage(error.message);
-  }
+  await showSingleDay(els.singleDate.value);
 });
 
 els.rangeForm.addEventListener("submit", async (event) => {
@@ -281,6 +278,7 @@ async function loadStatus() {
   if (status.lastDate && !els.toDate.value) els.toDate.value = status.lastDate;
   if (!els.syncFromDate.value) els.syncFromDate.value = status.recommendedSyncFrom ?? todayIso();
   if (!els.syncToDate.value) els.syncToDate.value = status.recommendedSyncTo ?? todayIso();
+  updateDayNavButtons();
   els.emptyState.classList.toggle("hidden", status.hasProducts || status.hasDays);
   if (status.error) showMessage(status.error);
 }
@@ -342,6 +340,39 @@ function renderDays(days) {
     }
     els.results.append(node);
   }
+}
+
+async function showSingleDay(date) {
+  if (!date) {
+    return;
+  }
+  try {
+    clearMessage();
+    els.singleDate.value = date;
+    updateDayNavButtons();
+    const response = await fetch(`/api/day?date=${encodeURIComponent(date)}`);
+    const payload = await readJson(response);
+    renderDays([payload]);
+  } catch (error) {
+    showMessage(error.message);
+  }
+}
+
+function shiftSingleDay(offset) {
+  const current = parseIsoDate(els.singleDate.value);
+  if (!current) {
+    return;
+  }
+  current.setDate(current.getDate() + offset);
+  showSingleDay(toIsoDate(current));
+}
+
+function updateDayNavButtons() {
+  const current = parseIsoDate(els.singleDate.value);
+  const min = parseIsoDate(els.singleDate.min);
+  const max = parseIsoDate(els.singleDate.max);
+  els.previousDay.disabled = Boolean(current && min && current <= min);
+  els.nextDay.disabled = Boolean(current && max && current >= max);
 }
 
 function restoreInsightSelection() {
@@ -539,10 +570,7 @@ async function openDateFromUrl() {
     return;
   }
   showPage("analysis");
-  els.singleDate.value = date;
-  const response = await fetch(`/api/day?date=${encodeURIComponent(date)}`);
-  const payload = await readJson(response);
-  renderDays([payload]);
+  await showSingleDay(date);
 }
 
 async function saveNote(date, note) {
@@ -656,6 +684,15 @@ function todayIso() {
   const now = new Date();
   const offset = now.getTimezoneOffset();
   return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
+function parseIsoDate(value) {
+  return value ? new Date(`${value}T12:00:00`) : null;
+}
+
+function toIsoDate(date) {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
 }
 
 function setBusy(text) {
