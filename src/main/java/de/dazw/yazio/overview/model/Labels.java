@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import de.dazw.yazio.overview.model.Domain.FoodItem;
 import de.dazw.yazio.overview.model.Domain.Macro;
@@ -20,6 +21,11 @@ import de.dazw.yazio.overview.model.Domain.MealReport;
  * HTTP-Handlern heraus.</p>
  */
 public final class Labels {
+    private static final Pattern COLA_PATTERN = Pattern.compile("(^|[^a-z0-9äöüß])cola([^a-z0-9äöüß]|$)");
+    private static final Pattern RED_BULL_PATTERN = Pattern.compile("(^|[^a-z0-9äöüß])red\\s*bull([^a-z0-9äöüß]|$)");
+    private static final Pattern COFFEE_PATTERN = Pattern.compile("(^|[^a-z0-9äöüß])coffee([^a-z0-9äöüß]|$)");
+    private static final Pattern KAFFEE_PATTERN = Pattern.compile("(^|[^a-z0-9äöüß])kaffee([^a-z0-9äöüß]|$)");
+
     private Labels() {
     }
 
@@ -81,10 +87,14 @@ public final class Labels {
                 || serving.contains("drink")
                 || name.contains("drink")
                 || name.contains("wasser")
-                || name.contains("cola")
-                || name.contains("red bull")
-                || name.contains("coffee")
-                || name.contains("kaffee");
+                || containsDrinkWord(name, COLA_PATTERN)
+                || containsDrinkWord(name, RED_BULL_PATTERN)
+                || containsDrinkWord(name, COFFEE_PATTERN)
+                || containsDrinkWord(name, KAFFEE_PATTERN);
+    }
+
+    private static boolean containsDrinkWord(String name, Pattern pattern) {
+        return pattern.matcher(name).find();
     }
 
     public static String itemLine(FoodItem item) {
