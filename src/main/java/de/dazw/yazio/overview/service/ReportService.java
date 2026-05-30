@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static de.dazw.yazio.overview.model.Labels.amountLabel;
+import static de.dazw.yazio.overview.model.Labels.detectedDrink;
 
 /**
  * Erzeugt aus den gespeicherten Yazio-Rohdaten die fachliche Tagesauswertung.
@@ -32,7 +33,8 @@ public final class ReportService {
             Macro macro = macroFor(product, entry.amount());
             String mealKey = normalizeMeal(entry.daytime());
             MealReport meal = meals.computeIfAbsent(mealKey, MealReport::new);
-            meal.items().add(new FoodItem(
+            FoodItem item = new FoodItem(
+                    entry.id(),
                     product == null ? "(Unbekanntes Produkt)" : product.name(),
                     product == null ? null : product.producer(),
                     entry.amount(),
@@ -42,8 +44,11 @@ public final class ReportService {
                     entry.productId(),
                     amountLabel(entry.amount(), product == null ? null : product.baseUnit(), entry.serving(), entry.servingQuantity()),
                     false,
-                    macro
-            ));
+                    macro,
+                    false,
+                    "food"
+            );
+            meal.items().add(applyClassification(item, snapshot.itemClassifications()));
             meal.total().add(macro);
         }
 
@@ -54,7 +59,8 @@ public final class ReportService {
             Macro macro = macroFor(entry.nutrients());
             String mealKey = normalizeMeal(entry.daytime());
             MealReport meal = meals.computeIfAbsent(mealKey, MealReport::new);
-            meal.items().add(new FoodItem(
+            FoodItem item = new FoodItem(
+                    entry.id(),
                     entry.name(),
                     entry.aiGenerated() ? "KI erfasst" : null,
                     0,
@@ -64,8 +70,11 @@ public final class ReportService {
                     entry.id(),
                     entry.aiGenerated() ? "KI erfasste Mahlzeit" : "Einfache Mahlzeit",
                     entry.aiGenerated(),
-                    macro
-            ));
+                    macro,
+                    false,
+                    "food"
+            );
+            meal.items().add(applyClassification(item, snapshot.itemClassifications()));
             meal.total().add(macro);
         }
 
@@ -74,6 +83,28 @@ public final class ReportService {
         List<MealReport> mealReports = new ArrayList<>(meals.values());
         mealReports.sort(Comparator.comparingInt(meal -> mealOrder(meal.key())));
         return new DayReport(date, day.daily(), mealReports, total, snapshot.settings(), snapshot.notes().getOrDefault(date, ""));
+    }
+
+    private static FoodItem applyClassification(FoodItem item, Map<String, String> overrides) {
+        boolean automaticDrink = detectedDrink(item);
+        String automatic = automaticDrink ? "drink" : "food";
+        String override = overrides.get(item.itemId());
+        String classification = "drink".equals(override) || "food".equals(override) ? override : automatic;
+        return new FoodItem(
+                item.itemId(),
+                item.name(),
+                item.producer(),
+                item.amount(),
+                item.baseUnit(),
+                item.serving(),
+                item.servingQuantity(),
+                item.productId(),
+                item.amountLabel(),
+                item.aiGenerated(),
+                item.macro(),
+                automaticDrink,
+                classification
+        );
     }
 
     private static Macro macroFor(Product product, double amount) {

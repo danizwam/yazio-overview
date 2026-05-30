@@ -608,10 +608,51 @@ function renderMeal(meal) {
     const macros = document.createElement("div");
     macros.className = "food-macros";
     macros.textContent = `${fmt(item.macro.energy)} kcal · KH ${fmt(item.macro.carbs)} g · P ${fmt(item.macro.protein)} g · F ${fmt(item.macro.fat)} g`;
-    row.append(left, macros);
+    const classification = document.createElement("select");
+    classification.className = "classification-select";
+    classification.title = "Zuordnung für Export: gegessen oder getrunken";
+    classification.append(
+      option("food", "gegessen"),
+      option("drink", "getrunken")
+    );
+    classification.value = item.classification ?? item.automaticClassification ?? "food";
+    classification.classList.toggle("overridden", Boolean(item.classificationOverridden));
+    classification.addEventListener("change", () => {
+      saveItemClassification(item, classification).catch((error) => showMessage(error.message));
+    });
+    row.append(left, macros, classification);
     list.append(row);
   }
   return node;
+}
+
+function option(value, label) {
+  const node = document.createElement("option");
+  node.value = value;
+  node.textContent = label;
+  return node;
+}
+
+async function saveItemClassification(item, select) {
+  if (!item.itemId) {
+    showMessage("Dieser Eintrag hat keine stabile ID und kann nicht korrigiert werden.");
+    select.value = item.classification ?? item.automaticClassification ?? "food";
+    return;
+  }
+  const response = await fetch("/api/item-classification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      itemId: item.itemId,
+      classification: select.value
+    })
+  });
+  const payload = await readJson(response);
+  item.classification = payload.classification;
+  item.automaticClassification = payload.automaticClassification;
+  item.classificationOverridden = payload.classificationOverridden;
+  select.classList.toggle("overridden", Boolean(payload.classificationOverridden));
+  showMessage(payload.classificationOverridden ? "Zuordnung gespeichert." : "Zuordnung auf Automatik zurückgesetzt.", "ok");
 }
 
 function macroPills(macro) {

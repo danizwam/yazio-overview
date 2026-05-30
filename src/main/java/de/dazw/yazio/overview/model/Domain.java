@@ -20,18 +20,18 @@ public final class Domain {
     }
 
     public record DataStore(Map<String, Product> products, Map<LocalDate, Day> days, AppSettings settings,
-                            Map<LocalDate, String> notes, String error) {
+                            Map<LocalDate, String> notes, Map<String, String> itemClassifications, String error) {
         public static DataStore empty() {
-            return new DataStore(Map.of(), Map.of(), AppSettings.empty(), Map.of(), null);
+            return new DataStore(Map.of(), Map.of(), AppSettings.empty(), Map.of(), Map.of(), null);
         }
 
         public DataStore(Map<String, Product> products, Map<LocalDate, Day> days, AppSettings settings,
-                         Map<LocalDate, String> notes) {
-            this(products, days, settings, notes, null);
+                         Map<LocalDate, String> notes, Map<String, String> itemClassifications) {
+            this(products, days, settings, notes, itemClassifications, null);
         }
 
         public DataStore withError(String error) {
-            return new DataStore(products, days, settings, notes, error);
+            return new DataStore(products, days, settings, notes, itemClassifications, error);
         }
 
         public Optional<LocalDate> firstDate() {
@@ -173,11 +173,12 @@ public final class Domain {
         }
     }
 
-    public record FoodItem(String name, String producer, double amount, String baseUnit, String serving,
+    public record FoodItem(String itemId, String name, String producer, double amount, String baseUnit, String serving,
                            double servingQuantity, String productId, String amountLabel, boolean aiGenerated,
-                           Macro macro) {
+                           Macro macro, boolean automaticDrink, String classification) {
         public Map<String, Object> toMap() {
             Map<String, Object> map = new LinkedHashMap<>();
+            map.put("itemId", itemId);
             map.put("name", name);
             map.put("producer", producer);
             map.put("amount", Macro.round(amount));
@@ -188,6 +189,9 @@ public final class Domain {
             map.put("amountLabel", amountLabel);
             map.put("aiGenerated", aiGenerated);
             map.put("macro", macro.toMap());
+            map.put("automaticClassification", automaticDrink ? "drink" : "food");
+            map.put("classification", classification);
+            map.put("classificationOverridden", !classification.equals(automaticDrink ? "drink" : "food"));
             return map;
         }
     }
