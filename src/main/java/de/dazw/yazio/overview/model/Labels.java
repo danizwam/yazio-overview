@@ -90,6 +90,16 @@ public final class Labels {
     }
 
     public static boolean isDrink(FoodItem item) {
+        if ("drink".equals(item.classification())) {
+            return true;
+        }
+        if ("food".equals(item.classification())) {
+            return false;
+        }
+        return detectedDrink(item);
+    }
+
+    public static boolean detectedDrink(FoodItem item) {
         String unit = item.baseUnit() == null ? "" : item.baseUnit().toLowerCase(Locale.ROOT);
         String serving = item.serving() == null ? "" : item.serving().toLowerCase(Locale.ROOT);
         String name = item.name() == null ? "" : item.name().toLowerCase(Locale.ROOT);

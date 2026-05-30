@@ -57,6 +57,7 @@ public class YazioOverviewApp {
     private static final Path DAYS_FILE = DATA_DIR.resolve("days.json");
     private static final Path SETTINGS_FILE = DATA_DIR.resolve("settings.json");
     private static final Path NOTES_FILE = DATA_DIR.resolve("notes.json");
+    private static final Path ITEM_CLASSIFICATIONS_FILE = DATA_DIR.resolve("item-classifications.json");
     private static final Path IMPORTS_DIR = DATA_DIR.resolve("imports");
     private static final int DEFAULT_SYNC_LOOKBACK_DAYS = 14;
     private static final Map<String, String> CONTENT_TYPES = Map.of(
@@ -85,6 +86,7 @@ public class YazioOverviewApp {
         server.createContext("/api/range", app::range);
         server.createContext("/api/settings", app::settings);
         server.createContext("/api/note", app::note);
+        server.createContext("/api/item-classification", app::itemClassification);
         server.createContext("/api/sync/status", app::syncStatus);
         server.createContext("/api/sync", app::sync);
         server.createContext("/api/insights/products", app::insightProducts);
@@ -115,7 +117,10 @@ public class YazioOverviewApp {
                 Map<LocalDate, String> notes = Files.exists(NOTES_FILE)
                         ? parseNotes(Files.readString(NOTES_FILE))
                         : Map.of();
-                store = new DataStore(products, days, settings, notes);
+                Map<String, String> itemClassifications = Files.exists(ITEM_CLASSIFICATIONS_FILE)
+                        ? parseItemClassifications(Files.readString(ITEM_CLASSIFICATIONS_FILE))
+                        : Map.of();
+                store = new DataStore(products, days, settings, notes, itemClassifications);
             } catch (RuntimeException | IOException ex) {
                 store = DataStore.empty().withError(ex.getMessage());
             }
@@ -197,6 +202,51 @@ public class YazioOverviewApp {
         Files.writeString(NOTES_FILE, JsonWriter.write(notesToMap(notes)), StandardCharsets.UTF_8);
         reload();
         send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
+    }
+
+    private void itemClassification(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("POST")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
+        String itemId = str(body.get("itemId"));
+        String requested = str(body.get("classification"));
+        if (itemId == null || itemId.isBlank()) {
+            send(exchange, 400, Map.of("error", "Bitte einen Eintrag auswählen."));
+            return;
+        }
+
+        Map<String, FoodItem> currentItems = currentItemsById();
+        FoodItem item = currentItems.get(itemId);
+        if (item == null) {
+            send(exchange, 404, Map.of("error", "Der Eintrag existiert im aktuellen Datenbestand nicht mehr."));
+            return;
+        }
+
+        Map<String, String> overrides = new TreeMap<>(snapshot().itemClassifications());
+        overrides.keySet().retainAll(currentItems.keySet());
+        String automatic = item.automaticDrink() ? "drink" : "food";
+        if (requested == null || requested.isBlank() || requested.equals("auto") || requested.equals(automatic)) {
+            overrides.remove(itemId);
+            requested = automatic;
+        } else if (requested.equals("food") || requested.equals("drink")) {
+            overrides.put(itemId, requested);
+        } else {
+            send(exchange, 400, Map.of("error", "Bitte gegessen oder getrunken auswählen."));
+            return;
+        }
+
+        Files.createDirectories(DATA_DIR);
+        Files.writeString(ITEM_CLASSIFICATIONS_FILE, JsonWriter.write(new LinkedHashMap<>(overrides)), StandardCharsets.UTF_8);
+        reload();
+        send(exchange, 200, Map.of(
+                "itemId", itemId,
+                "classification", requested,
+                "automaticClassification", automatic,
+                "classificationOverridden", !requested.equals(automatic)
+        ));
     }
 
     private void sync(HttpExchange exchange) throws IOException {
@@ -520,6 +570,20 @@ public class YazioOverviewApp {
         return reports;
     }
 
+    private Map<String, FoodItem> currentItemsById() {
+        Map<String, FoodItem> items = new LinkedHashMap<>();
+        for (DayReport report : allReports()) {
+            for (MealReport meal : report.meals()) {
+                for (FoodItem item : meal.items()) {
+                    if (item.itemId() != null && !item.itemId().isBlank()) {
+                        items.put(item.itemId(), item);
+                    }
+                }
+            }
+        }
+        return items;
+    }
+
     private SyncRecommendation syncRecommendation() {
         LocalDate today = LocalDate.now();
         LocalDate regularStart = today.minusDays(DEFAULT_SYNC_LOOKBACK_DAYS);
@@ -829,6 +893,24 @@ public class YazioOverviewApp {
         Map<String, Object> map = new LinkedHashMap<>();
         notes.forEach((date, note) -> map.put(date.toString(), note));
         return map;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> parseItemClassifications(String json) {
+        Object root = new JsonParser(json).parse();
+        Map<String, String> result = new TreeMap<>();
+        if (!(root instanceof Map<?, ?> raw)) {
+            return result;
+        }
+        Map<String, Object> map = (Map<String, Object>) raw;
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            String itemId = entry.getKey();
+            String classification = str(entry.getValue());
+            if (itemId != null && !itemId.isBlank() && ("food".equals(classification) || "drink".equals(classification))) {
+                result.put(itemId, classification);
+            }
+        }
+        return result;
     }
 
     private static Map<String, Double> numbers(Map<String, Object> map) {
