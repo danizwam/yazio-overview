@@ -21,10 +21,24 @@ import de.dazw.yazio.overview.model.Domain.MealReport;
  * HTTP-Handlern heraus.</p>
  */
 public final class Labels {
-    private static final Pattern COLA_PATTERN = Pattern.compile("(^|[^a-z0-9äöüß])cola([^a-z0-9äöüß]|$)");
-    private static final Pattern RED_BULL_PATTERN = Pattern.compile("(^|[^a-z0-9äöüß])red\\s*bull([^a-z0-9äöüß]|$)");
-    private static final Pattern COFFEE_PATTERN = Pattern.compile("(^|[^a-z0-9äöüß])coffee([^a-z0-9äöüß]|$)");
-    private static final Pattern KAFFEE_PATTERN = Pattern.compile("(^|[^a-z0-9äöüß])kaffee([^a-z0-9äöüß]|$)");
+    private static final List<String> FOOD_SERVINGS = List.of("bar", "piece", "slice", "bread", "spread");
+    private static final List<String> DRINK_SERVINGS = List.of("bottle", "can", "cup", "glass", "drink");
+    private static final List<Pattern> DRINK_NAME_PATTERNS = List.of(
+            wordPattern("drink"),
+            wordPattern("wasser"),
+            wordPattern("cola"),
+            wordPattern("red\\s*bull"),
+            wordPattern("coffee"),
+            wordPattern("kaffee"),
+            wordPattern("tee"),
+            wordPattern("saft"),
+            wordPattern("smoothie"),
+            wordPattern("shake"),
+            wordPattern("milchshake"),
+            wordPattern("milkshake"),
+            wordPattern("limo"),
+            wordPattern("schorle")
+    );
 
     private Labels() {
     }
@@ -79,22 +93,26 @@ public final class Labels {
         String unit = item.baseUnit() == null ? "" : item.baseUnit().toLowerCase(Locale.ROOT);
         String serving = item.serving() == null ? "" : item.serving().toLowerCase(Locale.ROOT);
         String name = item.name() == null ? "" : item.name().toLowerCase(Locale.ROOT);
+
+        // Klare Essens-Portionen gewinnen vor generischen Namenssignalen.
+        if (containsServingToken(serving, FOOD_SERVINGS)) {
+            return false;
+        }
         return unit.equals("ml")
-                || serving.contains("bottle")
-                || serving.contains("can")
-                || serving.contains("cup")
-                || serving.contains("glass")
-                || serving.contains("drink")
-                || name.contains("drink")
-                || name.contains("wasser")
-                || containsDrinkWord(name, COLA_PATTERN)
-                || containsDrinkWord(name, RED_BULL_PATTERN)
-                || containsDrinkWord(name, COFFEE_PATTERN)
-                || containsDrinkWord(name, KAFFEE_PATTERN);
+                || containsServingToken(serving, DRINK_SERVINGS)
+                || containsDrinkName(name);
     }
 
-    private static boolean containsDrinkWord(String name, Pattern pattern) {
-        return pattern.matcher(name).find();
+    private static boolean containsServingToken(String serving, List<String> tokens) {
+        return tokens.stream().anyMatch(token -> wordPattern(token).matcher(serving).find());
+    }
+
+    private static boolean containsDrinkName(String name) {
+        return DRINK_NAME_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(name).find());
+    }
+
+    private static Pattern wordPattern(String expression) {
+        return Pattern.compile("(^|[^a-z0-9äöüß])" + expression + "([^a-z0-9äöüß]|$)");
     }
 
     public static String itemLine(FoodItem item) {
