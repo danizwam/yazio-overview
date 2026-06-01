@@ -36,6 +36,14 @@ public final class Labels {
             wordPattern("shake"),
             wordPattern("milchshake"),
             wordPattern("milkshake"),
+            wordPattern("whey"),
+            wordPattern("clear\\s*whey"),
+            wordPattern("protein\\s*shake"),
+            wordPattern("protein\\s*drink"),
+            wordPattern("proteinpulver"),
+            wordPattern("eiwei(?:ss|ß)pulver"),
+            wordPattern("isolate"),
+            wordPattern("casein"),
             wordPattern("limo"),
             wordPattern("schorle")
     );

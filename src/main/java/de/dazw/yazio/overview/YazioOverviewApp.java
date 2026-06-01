@@ -213,6 +213,7 @@ public class YazioOverviewApp {
         Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
         String itemId = str(body.get("itemId"));
         String requested = str(body.get("classification"));
+        boolean learnProduct = bool(body.get("learnProduct"));
         if (itemId == null || itemId.isBlank()) {
             send(exchange, 400, Map.of("error", "Bitte einen Eintrag auswählen."));
             return;
@@ -226,13 +227,31 @@ public class YazioOverviewApp {
         }
 
         Map<String, String> overrides = new TreeMap<>(snapshot().itemClassifications());
-        overrides.keySet().retainAll(currentItems.keySet());
+        cleanupClassificationOverrides(overrides, currentItems);
         String automatic = item.automaticDrink() ? "drink" : "food";
-        if (requested == null || requested.isBlank() || requested.equals("auto") || requested.equals(automatic)) {
+        String productKey = classificationProductKey(item.productId());
+        boolean canLearnProduct = productKey != null && snapshot().products().containsKey(item.productId());
+        if (requested == null || requested.isBlank() || requested.equals("auto")) {
             overrides.remove(itemId);
             requested = automatic;
         } else if (requested.equals("food") || requested.equals("drink")) {
-            overrides.put(itemId, requested);
+            if (learnProduct && canLearnProduct) {
+                if (requested.equals(automatic)) {
+                    overrides.remove(productKey);
+                } else {
+                    overrides.put(productKey, requested);
+                }
+                overrides.remove(itemId);
+            } else {
+                String productOverride = productKey == null ? null : overrides.get(productKey);
+                if (requested.equals(automatic) && productOverride == null) {
+                    overrides.remove(itemId);
+                } else if (requested.equals(productOverride)) {
+                    overrides.remove(itemId);
+                } else {
+                    overrides.put(itemId, requested);
+                }
+            }
         } else {
             send(exchange, 400, Map.of("error", "Bitte gegessen oder getrunken auswählen."));
             return;
@@ -245,7 +264,8 @@ public class YazioOverviewApp {
                 "itemId", itemId,
                 "classification", requested,
                 "automaticClassification", automatic,
-                "classificationOverridden", !requested.equals(automatic)
+                "classificationOverridden", !requested.equals(automatic),
+                "learnedProduct", learnProduct && canLearnProduct
         ));
     }
 
@@ -582,6 +602,18 @@ public class YazioOverviewApp {
             }
         }
         return items;
+    }
+
+    private void cleanupClassificationOverrides(Map<String, String> overrides, Map<String, FoodItem> currentItems) {
+        Set<String> productKeys = new LinkedHashSet<>();
+        snapshot().products().keySet().forEach(productId -> productKeys.add(classificationProductKey(productId)));
+        overrides.keySet().removeIf(key -> key.startsWith("product:")
+                ? !productKeys.contains(key)
+                : !currentItems.containsKey(key));
+    }
+
+    private static String classificationProductKey(String productId) {
+        return productId == null || productId.isBlank() ? null : "product:" + productId;
     }
 
     private SyncRecommendation syncRecommendation() {
