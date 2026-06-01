@@ -1,0 +1,39 @@
+name: Windows Portable EXE
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-windows-portable:
+    runs-on: windows-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Java 21 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Portable Windows-Paket bauen
+        shell: pwsh
+        run: ./scripts/build-portable-windows.ps1 -Version "${{ github.ref_name }}"
+
+      - name: Portable ZIP als Artifact bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Yazio-Overview-Windows-Portable
+          path: dist/Yazio-Overview-Windows-Portable.zip
+
+      - name: GitHub Release fuer Tags erstellen
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Yazio-Overview-Windows-Portable.zip

@@ -25,6 +25,56 @@ javac -encoding UTF-8 -d out $files
 java -cp out de.dazw.yazio.overview.YazioOverviewApp
 ```
 
+## Portable Windows-EXE bauen
+
+Voraussetzung ist ein installiertes JDK 21. Wichtig: Es muss ein JDK sein, keine reine JRE, weil `javac`, `jar` und `jpackage` benoetigt werden.
+
+Unter PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-portable-windows.ps1
+```
+
+Das Skript erzeugt:
+
+```text
+dist/Yazio Overview/Yazio Overview.exe
+dist/Yazio-Overview-Windows-Portable.zip
+```
+
+Die ZIP-Datei ist die portable Variante fuer Endnutzer. Sie enthaelt eine eigene Java-Laufzeitumgebung. Der Nutzer muss also kein Java installieren:
+
+1. ZIP entpacken
+2. `Yazio Overview.exe` starten
+3. Browser oeffnet sich automatisch unter <http://localhost:8080>
+
+Die lokalen Daten liegen neben der EXE im Ordner `data`. Der komplette Ordner kann kopiert oder auf einen anderen Rechner verschoben werden.
+
+Optional kann eine Versionsnummer uebergeben werden:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-portable-windows.ps1 -Version "1.0.0"
+```
+
+## Automatischer Build auf GitHub
+
+Der Workflow `.github/workflows/windows-portable.yml` baut bei jedem Push auf `main` automatisch die portable Windows-ZIP und stellt sie als GitHub-Actions-Artifact bereit.
+
+Normaler Ablauf:
+
+1. Aenderung nach GitHub pushen
+2. Im Repository unter `Actions` den Lauf `Windows Portable EXE` oeffnen
+3. Unter `Artifacts` die Datei `Yazio-Overview-Windows-Portable` herunterladen
+
+Fuer echte Releases einen Git-Tag pushen:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Bei Tags, die mit `v` beginnen, erstellt der Workflow zusaetzlich einen GitHub Release und haengt die portable ZIP dort an.
+
 Optional kann der Datenordner überschrieben werden:
 
 ```powershell
