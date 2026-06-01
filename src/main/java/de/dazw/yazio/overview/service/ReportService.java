@@ -88,8 +88,9 @@ public final class ReportService {
     private static FoodItem applyClassification(FoodItem item, Map<String, String> overrides) {
         boolean automaticDrink = detectedDrink(item);
         String automatic = automaticDrink ? "drink" : "food";
-        String override = overrides.get(item.itemId());
-        String classification = "drink".equals(override) || "food".equals(override) ? override : automatic;
+        String itemOverride = itemClassification(overrides, item.itemId());
+        String productOverride = itemClassification(overrides, productKey(item.productId()));
+        String classification = firstClassification(itemOverride, productOverride, automatic);
         return new FoodItem(
                 item.itemId(),
                 item.name(),
@@ -105,6 +106,28 @@ public final class ReportService {
                 automaticDrink,
                 classification
         );
+    }
+
+    private static String itemClassification(Map<String, String> overrides, String key) {
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+        String value = overrides.get(key);
+        return "drink".equals(value) || "food".equals(value) ? value : null;
+    }
+
+    private static String productKey(String productId) {
+        return productId == null || productId.isBlank() ? null : "product:" + productId;
+    }
+
+    private static String firstClassification(String itemOverride, String productOverride, String automatic) {
+        if (itemOverride != null) {
+            return itemOverride;
+        }
+        if (productOverride != null) {
+            return productOverride;
+        }
+        return automatic;
     }
 
     private static Macro macroFor(Product product, double amount) {

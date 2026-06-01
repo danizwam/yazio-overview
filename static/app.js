@@ -639,12 +639,15 @@ async function saveItemClassification(item, select) {
     select.value = item.classification ?? item.automaticClassification ?? "food";
     return;
   }
+  const learnProduct = Boolean(item.productId && !item.aiGenerated && item.serving !== "simple_product")
+    && window.confirm("Diese Zuordnung künftig für dieses Produkt merken?");
   const response = await fetch("/api/item-classification", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       itemId: item.itemId,
-      classification: select.value
+      classification: select.value,
+      learnProduct
     })
   });
   const payload = await readJson(response);
@@ -652,7 +655,9 @@ async function saveItemClassification(item, select) {
   item.automaticClassification = payload.automaticClassification;
   item.classificationOverridden = payload.classificationOverridden;
   select.classList.toggle("overridden", Boolean(payload.classificationOverridden));
-  showMessage(payload.classificationOverridden ? "Zuordnung gespeichert." : "Zuordnung auf Automatik zurückgesetzt.", "ok");
+  showMessage(payload.learnedProduct
+    ? "Zuordnung für dieses Produkt gespeichert."
+    : payload.classificationOverridden ? "Zuordnung gespeichert." : "Zuordnung auf Automatik zurückgesetzt.", "ok");
 }
 
 function macroPills(macro) {
