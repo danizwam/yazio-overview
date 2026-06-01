@@ -1094,10 +1094,26 @@ public class YazioOverviewApp {
     }
 
     private static String exportName(List<DayReport> reports, String extension) {
-        String first = reports.getFirst().date().toString();
-        String last = reports.getLast().date().toString();
-        String range = first.equals(last) ? first : first + "_bis_" + last;
-        return "yazio_" + range + "." + extension;
+        DayReport firstReport = reports.getFirst();
+        DayReport lastReport = reports.getLast();
+        String first = firstReport.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        String last = lastReport.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        String prefix = fileNamePart(firstReport.settings().name());
+        if (prefix.isBlank()) {
+            prefix = "Yazio";
+        }
+        return prefix + "_Yazio-Export_" + first + "-" + last + "." + extension;
+    }
+
+    private static String fileNamePart(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim()
+                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .replaceAll("\\s+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_|_$", "");
     }
 
     private static byte[] readAll(InputStream input) throws IOException {
