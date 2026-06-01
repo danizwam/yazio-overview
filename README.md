@@ -71,7 +71,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-portable-windows.ps1 -V
 
 ## Automatischer Build auf GitHub
 
-Der Workflow `.github/workflows/windows-portable.yml` baut bei jedem Push auf `main` automatisch die portable Windows-ZIP und stellt sie als GitHub-Actions-Artifact bereit.
+Der Workflow `.github/workflows/windows-portable.yml` baut bei jedem Push auf `main` automatisch die portable Windows-Version und stellt sie als GitHub-Actions-Artifact bereit.
 
 Wenn du nur einen Test-Build brauchst:
 
@@ -80,6 +80,8 @@ Wenn du nur einen Test-Build brauchst:
 3. Den Lauf `Windows Portable EXE` auswaehlen
 4. Unter `Artifacts` die Datei `Yazio-Overview-Windows-Portable` herunterladen
 
+Hinweis: GitHub packt Artifacts selbst als ZIP. Deshalb wird dort der entpackte Portable-Ordner hochgeladen. Der Download enthaelt die EXE direkt und keine zweite ZIP-Datei im ZIP.
+
 Wenn du eine Version fuer andere bereitstellen willst, erstelle einen Tag:
 
 ```powershell
@@ -87,7 +89,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-Bei Tags, die mit `v` beginnen, erstellt der Workflow zusaetzlich einen GitHub Release und haengt die portable ZIP dort an. Das ist der normale Weg, um fertige Downloads bereitzustellen.
+Bei Tags, die mit `v` beginnen, erstellt der Workflow zusaetzlich einen GitHub Release und haengt die vom Build-Skript erzeugte portable ZIP dort an. Das ist der normale Weg, um fertige Downloads bereitzustellen.
 
 Der Build dauert typischerweise wenige Minuten. Der erste Lauf kann etwas laenger dauern, weil GitHub den Runner vorbereitet und Java einrichtet.
 
