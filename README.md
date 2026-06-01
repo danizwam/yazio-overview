@@ -25,11 +25,24 @@ javac -encoding UTF-8 -d out $files
 java -cp out de.dazw.yazio.overview.YazioOverviewApp
 ```
 
-## Portable Windows-EXE bauen
+## Portable Windows-Version verwenden
+
+Wenn du die fertige portable Version nutzt, brauchst du kein Java und keine PowerShell:
+
+1. ZIP-Datei aus dem GitHub Release oder aus den GitHub-Actions-Artefakten herunterladen
+2. ZIP-Datei entpacken
+3. `Yazio Overview.exe` starten
+4. Der Browser oeffnet sich automatisch unter <http://localhost:8080>
+
+Deine lokalen Daten liegen neben der EXE im Ordner `data`. Du kannst den kompletten entpackten Ordner kopieren oder auf einen anderen Rechner verschieben.
+
+## Portable Windows-Version selbst bauen
+
+Dieser Abschnitt ist nur relevant, wenn du selbst eine neue portable ZIP-Datei erzeugen willst. Fuer die normale Nutzung reicht der Download der fertigen ZIP-Datei.
 
 Voraussetzung ist ein installiertes JDK 21. Wichtig: Es muss ein JDK sein, keine reine JRE, weil `javac`, `jar` und `jpackage` benoetigt werden.
 
-Unter PowerShell:
+Unter Windows kannst du den Build so starten:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build-portable-windows.ps1
@@ -42,13 +55,13 @@ dist/Yazio Overview/Yazio Overview.exe
 dist/Yazio-Overview-Windows-Portable.zip
 ```
 
-Die ZIP-Datei ist die portable Variante fuer Endnutzer. Sie enthaelt eine eigene Java-Laufzeitumgebung. Der Nutzer muss also kein Java installieren:
+Die ZIP-Datei ist die portable Variante fuer die Weitergabe. Sie enthaelt eine eigene Java-Laufzeitumgebung. Du musst also kein Java installieren:
 
 1. ZIP entpacken
 2. `Yazio Overview.exe` starten
 3. Browser oeffnet sich automatisch unter <http://localhost:8080>
 
-Die lokalen Daten liegen neben der EXE im Ordner `data`. Der komplette Ordner kann kopiert oder auf einen anderen Rechner verschoben werden.
+Die lokalen Daten liegen neben der EXE im Ordner `data`. Du kannst den kompletten Ordner kopieren oder auf einen anderen Rechner verschieben.
 
 Optional kann eine Versionsnummer uebergeben werden:
 
@@ -60,20 +73,23 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-portable-windows.ps1 -V
 
 Der Workflow `.github/workflows/windows-portable.yml` baut bei jedem Push auf `main` automatisch die portable Windows-ZIP und stellt sie als GitHub-Actions-Artifact bereit.
 
-Normaler Ablauf:
+Wenn du nur einen Test-Build brauchst:
 
 1. Aenderung nach GitHub pushen
-2. Im Repository unter `Actions` den Lauf `Windows Portable EXE` oeffnen
-3. Unter `Artifacts` die Datei `Yazio-Overview-Windows-Portable` herunterladen
+2. Im Repository den Bereich `Actions` oeffnen
+3. Den Lauf `Windows Portable EXE` auswaehlen
+4. Unter `Artifacts` die Datei `Yazio-Overview-Windows-Portable` herunterladen
 
-Fuer echte Releases einen Git-Tag pushen:
+Wenn du eine Version fuer andere bereitstellen willst, erstelle einen Tag:
 
 ```powershell
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-Bei Tags, die mit `v` beginnen, erstellt der Workflow zusaetzlich einen GitHub Release und haengt die portable ZIP dort an.
+Bei Tags, die mit `v` beginnen, erstellt der Workflow zusaetzlich einen GitHub Release und haengt die portable ZIP dort an. Das ist der normale Weg, um fertige Downloads bereitzustellen.
+
+Der Build dauert typischerweise wenige Minuten. Der erste Lauf kann etwas laenger dauern, weil GitHub den Runner vorbereitet und Java einrichtet.
 
 Optional kann der Datenordner überschrieben werden:
 
