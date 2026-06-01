@@ -15,9 +15,11 @@ import de.dazw.yazio.overview.sync.SyncSupport.*;
 import static de.dazw.yazio.overview.model.Labels.*;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.awt.Desktop;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.InetSocketAddress;
@@ -52,7 +54,9 @@ import java.util.zip.ZipOutputStream;
 
 public class YazioOverviewApp {
     private static final int PORT = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
-    private static final Path DATA_DIR = Path.of(System.getenv().getOrDefault("YAZIO_DATA_DIR", "data"));
+    private static final Path APP_BASE_DIR = appBaseDir();
+    private static final Path DATA_DIR = defaultDataDir();
+    private static final Path STATIC_DIR = defaultStaticDir();
     private static final Path PRODUCTS_FILE = DATA_DIR.resolve("products.json");
     private static final Path DAYS_FILE = DATA_DIR.resolve("days.json");
     private static final Path SETTINGS_FILE = DATA_DIR.resolve("settings.json");
@@ -99,7 +103,9 @@ public class YazioOverviewApp {
         server.createContext("/api/export/pdf", app::exportPdf);
         server.createContext("/", app::staticFile);
         server.start();
-        System.out.printf(Locale.ROOT, "Yazio Overview running on http://localhost:%d%n", PORT);
+        String url = String.format(Locale.ROOT, "http://localhost:%d", PORT);
+        System.out.printf(Locale.ROOT, "Yazio Overview running on %s%n", url);
+        openBrowserIfRequested(url);
     }
 
     private void reload() {
@@ -556,7 +562,7 @@ public class YazioOverviewApp {
             send(exchange, 403, Map.of("error", "Forbidden"));
             return;
         }
-        Path path = Path.of("static").resolve(fileName);
+        Path path = STATIC_DIR.resolve(fileName);
         if (!Files.exists(path) || Files.isDirectory(path)) {
             send(exchange, 404, Map.of("error", "Not found"));
             return;
@@ -1098,6 +1104,57 @@ public class YazioOverviewApp {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         input.transferTo(output);
         return output.toByteArray();
+    }
+
+    private static Path defaultDataDir() {
+        String configured = System.getenv("YAZIO_DATA_DIR");
+        if (configured == null || configured.isBlank()) {
+            configured = System.getProperty("yazio.data.dir");
+        }
+        return configured == null || configured.isBlank() ? APP_BASE_DIR.resolve("data") : Path.of(configured);
+    }
+
+    private static Path defaultStaticDir() {
+        String configured = System.getenv("YAZIO_STATIC_DIR");
+        if (configured == null || configured.isBlank()) {
+            configured = System.getProperty("yazio.static.dir");
+        }
+        if (configured != null && !configured.isBlank()) {
+            return Path.of(configured);
+        }
+        Path packaged = APP_BASE_DIR.resolve("static");
+        return Files.exists(packaged) ? packaged : Path.of("static");
+    }
+
+    private static Path appBaseDir() {
+        String classPath = System.getProperty("java.class.path", "");
+        if (!classPath.isBlank()) {
+            Path firstEntry = Path.of(classPath.split(File.pathSeparator)[0]).toAbsolutePath().normalize();
+            Path container = Files.isDirectory(firstEntry) ? firstEntry : firstEntry.getParent();
+            if (container != null) {
+                Path fileName = container.getFileName();
+                if (fileName != null && (fileName.toString().equals("app") || fileName.toString().equals("out"))) {
+                    Path parent = container.getParent();
+                    if (parent != null) {
+                        return parent;
+                    }
+                }
+                return container;
+            }
+        }
+        return Path.of("").toAbsolutePath().normalize();
+    }
+
+    private static void openBrowserIfRequested(String url) {
+        String value = System.getProperty("yazio.openBrowser", System.getenv().getOrDefault("YAZIO_OPEN_BROWSER", "false"));
+        if (!Boolean.parseBoolean(value) || !Desktop.isDesktopSupported()) {
+            return;
+        }
+        try {
+            Desktop.getDesktop().browse(URI.create(url));
+        } catch (RuntimeException | IOException ex) {
+            System.err.println("Browser konnte nicht automatisch geoeffnet werden: " + ex.getMessage());
+        }
     }
 
     private static String boundary(String contentType) {
