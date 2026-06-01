@@ -1102,7 +1102,8 @@ public class YazioOverviewApp {
         if (prefix.isBlank()) {
             prefix = "Yazio";
         }
-        return prefix + "_Yazio-Export_" + first + "-" + last + "." + extension;
+        String range = first.equals(last) ? first : first + "-" + last;
+        return prefix + "_Yazio-Export_" + range + "." + extension;
     }
 
     private static String fileNamePart(String value) {
