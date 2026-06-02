@@ -32,8 +32,13 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.release_version != ''
         shell: pwsh
         run: |
-          if (git rev-parse -q --verify "refs/tags/${{ inputs.release_version }}") {
+          git show-ref --verify --quiet "refs/tags/${{ inputs.release_version }}"
+          if ($LASTEXITCODE -eq 0) {
             Write-Error "Die Release-Version ${{ inputs.release_version }} existiert bereits. Bitte eine neue Version angeben, z. B. v1.0.1."
+            exit 1
+          }
+          if ($LASTEXITCODE -ne 1) {
+            Write-Error "Die Release-Version konnte nicht geprueft werden."
             exit 1
           }
 
