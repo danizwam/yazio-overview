@@ -227,6 +227,7 @@ document.querySelectorAll(".today-button").forEach((button) => {
   button.addEventListener("click", () => {
     const target = document.querySelector(`#${button.dataset.target}`);
     if (target) target.value = todayIso();
+    updateRangeConstraints();
     updateDayNavButtons();
   });
 });
@@ -372,10 +373,16 @@ async function loadStatus() {
   const version = status.version?.number && status.version.number !== "dev" ? `v${status.version.number}` : "dev";
   els.appVersion.textContent = version;
   fillSettings(status.settings ?? {});
-  for (const input of [els.singleDate, els.fromDate, els.toDate]) {
-    if (status.firstDate) input.min = status.firstDate;
-    if (status.lastDate) input.max = status.lastDate;
+  if (status.firstDate) {
+    els.singleDate.min = status.firstDate;
+    els.fromDate.min = status.firstDate;
+    els.toDate.min = status.firstDate;
   }
+  if (status.lastDate) {
+    els.singleDate.max = status.lastDate;
+  }
+  els.fromDate.max = todayIso();
+  els.toDate.max = todayIso();
   if (status.lastDate && !els.singleDate.value) els.singleDate.value = status.lastDate;
   if (status.firstDate && !els.fromDate.value) els.fromDate.value = status.firstDate;
   if (status.lastDate && !els.toDate.value) els.toDate.value = status.lastDate;
@@ -484,8 +491,12 @@ function updateDayNavButtons() {
 }
 
 function updateRangeConstraints() {
-  els.toDate.min = els.fromDate.value || els.toDate.min;
-  els.fromDate.max = els.toDate.value || els.fromDate.max;
+  const firstDate = state.status?.firstDate ?? "";
+  const today = todayIso();
+  els.fromDate.min = firstDate;
+  els.fromDate.max = els.toDate.value || today;
+  els.toDate.min = els.fromDate.value || firstDate;
+  els.toDate.max = today;
 }
 
 function updateCalorieChartControls() {
