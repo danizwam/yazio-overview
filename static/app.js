@@ -469,13 +469,13 @@ function renderCalorieChart() {
   days.forEach((day, index) => {
     const point = points[index];
     const group = svgNode("g", { class: "chart-point", tabindex: "0", role: "button" });
-    group.append(svgNode("title", {}, `${formatDate(day.date)}: ${fmt(point.value)} kcal`));
+    group.append(svgNode("title", {}, `${formatDate(day.date)}: ${fmt(point.value)} kcal - Tag in neuem Tab öffnen`));
     group.append(svgNode("circle", { cx: point.x, cy: point.y, r: 5 }));
-    group.addEventListener("click", () => scrollToDay(day.date));
+    group.addEventListener("click", () => openDay(day.date));
     group.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        scrollToDay(day.date);
+        openDay(day.date);
       }
     });
     svg.append(group);
@@ -486,16 +486,6 @@ function renderCalorieChart() {
   });
 
   els.calorieChart.append(svg);
-}
-
-function scrollToDay(date) {
-  const target = document.querySelector(`#day-${CSS.escape(date)}`);
-  if (!target) {
-    return;
-  }
-  target.scrollIntoView({ behavior: "smooth", block: "start" });
-  target.classList.add("highlight-day");
-  window.setTimeout(() => target.classList.remove("highlight-day"), 1400);
 }
 
 function svgNode(name, attributes = {}, text = null) {
