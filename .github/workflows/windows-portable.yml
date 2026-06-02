@@ -31,13 +31,20 @@ jobs:
       - name: Release-Version pruefen
         if: github.event_name == 'workflow_dispatch' && inputs.release_version != ''
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
-          git show-ref --verify --quiet "refs/tags/${{ inputs.release_version }}"
-          if ($LASTEXITCODE -eq 0) {
-            Write-Error "Die Release-Version ${{ inputs.release_version }} existiert bereits. Bitte eine neue Version angeben, z. B. v1.0.1."
+          Write-Host "Pruefe Release-Version $env:RELEASE_VERSION gegen origin."
+          Write-Host "Vorhandene Tags:"
+          git ls-remote --tags origin
+
+          git ls-remote --exit-code --tags origin "refs/tags/$env:RELEASE_VERSION"
+          $tagCheck = $LASTEXITCODE
+          if ($tagCheck -eq 0) {
+            Write-Error "Die Release-Version $env:RELEASE_VERSION existiert bereits. Bitte eine neue Version angeben."
             exit 1
           }
-          if ($LASTEXITCODE -ne 1) {
+          if ($tagCheck -ne 2) {
             Write-Error "Die Release-Version konnte nicht geprueft werden."
             exit 1
           }
