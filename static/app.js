@@ -233,6 +233,8 @@ document.querySelectorAll(".today-button").forEach((button) => {
 
 els.previousDay.addEventListener("click", () => shiftSingleDay(-1));
 els.nextDay.addEventListener("click", () => shiftSingleDay(1));
+els.fromDate.addEventListener("change", updateRangeConstraints);
+els.toDate.addEventListener("change", updateRangeConstraints);
 
 els.settingsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -331,6 +333,10 @@ els.rangeForm.addEventListener("submit", async (event) => {
   const from = els.fromDate.value;
   const to = els.toDate.value;
   if (!from || !to) return;
+  if (!validRange(from, to)) {
+    showMessage("Das Startdatum darf nicht nach dem Enddatum liegen.");
+    return;
+  }
   try {
     clearMessage();
     const response = await fetch(`/api/range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
@@ -375,6 +381,7 @@ async function loadStatus() {
   if (status.lastDate && !els.toDate.value) els.toDate.value = status.lastDate;
   if (!els.syncFromDate.value) els.syncFromDate.value = status.recommendedSyncFrom ?? todayIso();
   if (!els.syncToDate.value) els.syncToDate.value = status.recommendedSyncTo ?? todayIso();
+  updateRangeConstraints();
   updateDayNavButtons();
   els.emptyState.classList.toggle("hidden", status.hasProducts || status.hasDays);
   if (status.error) showMessage(status.error);
@@ -474,6 +481,11 @@ function updateDayNavButtons() {
   const max = parseIsoDate(els.singleDate.max);
   els.previousDay.disabled = Boolean(current && min && current <= min);
   els.nextDay.disabled = Boolean(current && max && current >= max);
+}
+
+function updateRangeConstraints() {
+  els.toDate.min = els.fromDate.value || els.toDate.min;
+  els.fromDate.max = els.toDate.value || els.fromDate.max;
 }
 
 function updateCalorieChartControls() {
@@ -1156,6 +1168,10 @@ function exportFile(scope, type) {
       showMessage("Bitte zuerst einen Zeitraum auswählen.");
       return;
     }
+    if (!validRange(els.fromDate.value, els.toDate.value)) {
+      showMessage("Das Startdatum darf nicht nach dem Enddatum liegen.");
+      return;
+    }
     params.set("from", els.fromDate.value);
     params.set("to", els.toDate.value);
   }
@@ -1175,6 +1191,12 @@ function parseIsoDate(value) {
 function toIsoDate(date) {
   const offset = date.getTimezoneOffset();
   return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
+function validRange(from, to) {
+  const start = parseIsoDate(from);
+  const end = parseIsoDate(to);
+  return Boolean(start && end && start <= end);
 }
 
 function setBusy(text) {

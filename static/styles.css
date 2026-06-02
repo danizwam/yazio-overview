@@ -343,6 +343,10 @@ dd {
   grid-template-columns: minmax(220px, 1fr) auto;
 }
 
+#rangeForm {
+  grid-template-columns: minmax(150px, 1fr) minmax(90px, 0.45fr) minmax(150px, 1fr) minmax(90px, 0.45fr) minmax(150px, auto);
+}
+
 .export-actions {
   display: flex;
   flex-wrap: wrap;
