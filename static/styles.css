@@ -471,7 +471,7 @@ button:disabled {
 .calorie-chart svg {
   display: block;
   width: 100%;
-  min-width: 620px;
+  min-width: 720px;
   height: auto;
 }
 
