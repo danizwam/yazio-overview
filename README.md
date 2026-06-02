@@ -91,7 +91,9 @@ Wenn du eine Version als GitHub Release bereitstellen willst:
 5. Optional `release_notes` mit dem Infotext zum Release befuellen
 6. Workflow starten
 
-Der Workflow erstellt dann automatisch den Git-Tag, baut die portable ZIP und haengt sie als Asset an den GitHub Release. Wenn `release_notes` leer bleibt, wird ein kurzer Standardtext verwendet.
+Jede Release-Version muss eindeutig sein. Wenn `v1.0.0` bereits existiert, bricht der Workflow direkt ab. Fuer die naechste Version verwendest du z. B. `v1.0.1`.
+
+Der Workflow erstellt automatisch den Git-Tag, baut die portable ZIP und haengt sie als Asset an den GitHub Release. Wenn `release_notes` leer bleibt, wird ein kurzer Standardtext verwendet.
 
 Der Build dauert typischerweise wenige Minuten. Der erste Lauf kann etwas laenger dauern, weil GitHub den Runner vorbereitet und Java einrichtet.
 
