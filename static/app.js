@@ -427,7 +427,7 @@ function renderCalorieChart() {
 
   const width = 920;
   const height = 300;
-  const margin = { top: 22, right: 24, bottom: 54, left: 70 };
+  const margin = { top: 22, right: 24, bottom: 54, left: 110 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const values = days.map((day) => Number(day.total?.energy ?? day.daily?.energy ?? 0));
