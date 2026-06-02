@@ -509,6 +509,39 @@ button:disabled {
   padding: 10px;
 }
 
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+}
+
+.chart-legend-item i {
+  display: inline-block;
+  width: 28px;
+  height: 0;
+  border-top-width: 2px;
+  border-top-style: dashed;
+}
+
+.chart-legend-item .chart-average-line {
+  border-top-color: #7f8a57;
+}
+
+.chart-legend-item .chart-goal-line {
+  border-top-color: #b16634;
+}
+
 .calorie-chart svg {
   display: block;
   width: 100%;

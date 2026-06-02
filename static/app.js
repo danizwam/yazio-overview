@@ -101,6 +101,7 @@ const els = {
   chartMetric: document.querySelector("#chartMetric"),
   chartTitle: document.querySelector("#chartTitle"),
   rangeDashboard: document.querySelector("#rangeDashboard"),
+  chartLegend: document.querySelector("#chartLegend"),
   calorieChartPanel: document.querySelector("#calorieChartPanel"),
   calorieChart: document.querySelector("#calorieChart"),
   dayComparePanel: document.querySelector("#dayComparePanel"),
@@ -492,6 +493,7 @@ function hideCalorieChart() {
   els.toggleCalorieChart.textContent = "Graph anzeigen";
   els.calorieChartPanel.classList.add("hidden");
   els.calorieChart.replaceChildren();
+  els.chartLegend.replaceChildren();
 }
 
 function hideRangeEnhancements() {
@@ -663,9 +665,12 @@ function renderCalorieChart() {
   const points = days.map(pointFor);
   const avgY = margin.top + plotHeight - (average / yMax) * plotHeight;
   svg.append(svgNode("line", { x1: margin.left, y1: avgY, x2: width - margin.right, y2: avgY, class: "chart-average-line" }));
-  svg.append(svgText(width - margin.right, avgY - 6, `Ø ${fmt(average)} ${metric.unit}`, "chart-axis-label chart-line-label"));
 
+  const legendItems = [
+    ["chart-average-line", `Durchschnitt: ${fmt(average)} ${metric.unit}`]
+  ];
   if (metric.goal && goals.length > 0) {
+    legendItems.push(["chart-goal-line", `Ziel: Ø ${fmt(avg(goals))} ${metric.unit}`]);
     const goalPoints = days
       .map((day, index) => ({ value: metric.goal(day), index }))
       .filter((point) => point.value > 0)
@@ -678,6 +683,7 @@ function renderCalorieChart() {
       svg.append(svgNode("polyline", { points: goalPoints.join(" "), class: "chart-goal-line" }));
     }
   }
+  renderChartLegend(legendItems);
 
   svg.append(svgNode("polyline", {
     points: points.map((point) => `${point.x},${point.y}`).join(" "),
@@ -705,6 +711,17 @@ function renderCalorieChart() {
   });
 
   els.calorieChart.append(svg);
+}
+
+function renderChartLegend(items) {
+  els.chartLegend.replaceChildren(...items.map(([lineClass, label]) => {
+    const item = document.createElement("span");
+    item.className = "chart-legend-item";
+    const sample = document.createElement("i");
+    sample.className = lineClass;
+    item.append(sample, document.createTextNode(label));
+    return item;
+  }));
 }
 
 function svgNode(name, attributes = {}, text = null) {
