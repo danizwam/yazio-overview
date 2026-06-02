@@ -28,6 +28,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Release-Version pruefen
+        if: github.event_name == 'workflow_dispatch' && inputs.release_version != ''
+        shell: pwsh
+        run: |
+          if (git rev-parse -q --verify "refs/tags/${{ inputs.release_version }}") {
+            Write-Error "Die Release-Version ${{ inputs.release_version }} existiert bereits. Bitte eine neue Version angeben, z. B. v1.0.1."
+            exit 1
+          }
+
       - name: Java 21 einrichten
         uses: actions/setup-java@v5
         with:
@@ -68,7 +77,7 @@ jobs:
 
       - name: GitHub Release erstellen
         if: github.event_name == 'workflow_dispatch' && inputs.release_version != ''
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.release_version }}
           name: Yazio Overview ${{ inputs.release_version }}
