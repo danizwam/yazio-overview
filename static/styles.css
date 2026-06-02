@@ -707,10 +707,6 @@ button:disabled {
   padding: 22px;
 }
 
-.day-card.highlight-day {
-  box-shadow: 0 0 0 3px rgba(31, 107, 87, 0.28);
-}
-
 .day-header,
 .meal-card header {
   display: flex;
