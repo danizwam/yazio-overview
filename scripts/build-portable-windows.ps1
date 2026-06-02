@@ -16,6 +16,7 @@ $appVersion = $Version.TrimStart("v")
 if ($appVersion -notmatch '^\d+(\.\d+){0,3}$') {
     $appVersion = "0.0.0"
 }
+$buildDate = Get-Date -Format "yyyy-MM-dd"
 
 if (-not (Get-Command javac -ErrorAction SilentlyContinue)) {
     throw "javac wurde nicht gefunden. Bitte ein JDK 21 installieren und JAVA_HOME/PATH setzen."
@@ -45,6 +46,8 @@ jpackage `
     --dest $distDir `
     --java-options "-Dfile.encoding=UTF-8" `
     --java-options "-Dyazio.openBrowser=true" `
+    --java-options "-Dyazio.app.version=$appVersion" `
+    --java-options "-Dyazio.build.date=$buildDate" `
     --vendor "Yazio Overview" `
     --app-version $appVersion `
     --win-console

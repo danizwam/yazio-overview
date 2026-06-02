@@ -3,10 +3,39 @@ const state = {
   status: null,
   selectedProduct: null,
   rangeDays: [],
-  chartVisible: false
+  chartVisible: false,
+  chartMetric: "energy"
 };
 
 const insightStorageKey = "yazioOverview.insightSelection";
+
+const chartMetrics = {
+  energy: {
+    label: "Kalorien",
+    title: "Konsumierte Kalorien pro Tag",
+    unit: "kcal",
+    value: (day) => Number(day.total?.energy ?? day.daily?.energy ?? 0),
+    goal: (day) => Number(day.daily?.energyGoal ?? 0)
+  },
+  protein: {
+    label: "Protein",
+    title: "Protein pro Tag",
+    unit: "g",
+    value: (day) => Number(day.total?.protein ?? 0)
+  },
+  carbs: {
+    label: "Kohlenhydrate",
+    title: "Kohlenhydrate pro Tag",
+    unit: "g",
+    value: (day) => Number(day.total?.carbs ?? 0)
+  },
+  fat: {
+    label: "Fett",
+    title: "Fett pro Tag",
+    unit: "g",
+    value: (day) => Number(day.total?.fat ?? 0)
+  }
+};
 
 const insightSorts = {
   search: [
@@ -69,8 +98,17 @@ const els = {
   singleExports: document.querySelector("#singleExports"),
   rangeExports: document.querySelector("#rangeExports"),
   toggleCalorieChart: document.querySelector("#toggleCalorieChart"),
+  chartMetric: document.querySelector("#chartMetric"),
+  chartTitle: document.querySelector("#chartTitle"),
+  rangeDashboard: document.querySelector("#rangeDashboard"),
   calorieChartPanel: document.querySelector("#calorieChartPanel"),
   calorieChart: document.querySelector("#calorieChart"),
+  dayComparePanel: document.querySelector("#dayComparePanel"),
+  compareDayA: document.querySelector("#compareDayA"),
+  compareDayB: document.querySelector("#compareDayB"),
+  compareResult: document.querySelector("#compareResult"),
+  weekSummaryPanel: document.querySelector("#weekSummaryPanel"),
+  weekSummary: document.querySelector("#weekSummary"),
   singleDate: document.querySelector("#singleDate"),
   previousDay: document.querySelector("#previousDay"),
   nextDay: document.querySelector("#nextDay"),
@@ -87,6 +125,13 @@ const els = {
   productDetailTitle: document.querySelector("#productDetailTitle"),
   productDaySort: document.querySelector("#productDaySort"),
   productDayResults: document.querySelector("#productDayResults"),
+  appVersion: document.querySelector("#appVersion"),
+  loadClassificationRules: document.querySelector("#loadClassificationRules"),
+  classificationRules: document.querySelector("#classificationRules"),
+  loadDataQuality: document.querySelector("#loadDataQuality"),
+  dataQualityResults: document.querySelector("#dataQualityResults"),
+  downloadBackup: document.querySelector("#downloadBackup"),
+  restoreForm: document.querySelector("#restoreForm"),
   results: document.querySelector("#results"),
   emptyState: document.querySelector("#emptyState"),
   message: document.querySelector("#message"),
@@ -127,7 +172,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
     els.singleExports.classList.toggle("hidden", state.mode !== "single");
     els.rangeExports.classList.toggle("hidden", state.mode !== "range");
     if (state.mode !== "range") {
-      hideCalorieChart();
+      hideRangeEnhancements();
     } else {
       updateCalorieChartControls();
     }
@@ -143,6 +188,14 @@ els.toggleCalorieChart.addEventListener("click", () => {
   state.chartVisible = !state.chartVisible;
   renderCalorieChart();
 });
+
+els.chartMetric.addEventListener("change", () => {
+  state.chartMetric = els.chartMetric.value;
+  renderCalorieChart();
+});
+
+els.compareDayA.addEventListener("change", renderDayComparison);
+els.compareDayB.addEventListener("change", renderDayComparison);
 
 els.insightType.addEventListener("change", () => {
   populateInsightSort();
@@ -245,6 +298,28 @@ els.uploadForm.addEventListener("submit", async (event) => {
   }
 });
 
+els.loadClassificationRules.addEventListener("click", () => loadClassificationRules().catch((error) => showMessage(error.message)));
+els.loadDataQuality.addEventListener("click", () => loadDataQuality().catch((error) => showMessage(error.message)));
+els.downloadBackup.addEventListener("click", () => {
+  window.location.href = "/api/backup";
+});
+
+els.restoreForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(els.restoreForm);
+  if (!form.get("backup")?.size) {
+    showMessage("Bitte ein Backup-ZIP auswÃ¤hlen.");
+    return;
+  }
+  try {
+    const payload = await readJson(await fetch("/api/restore", { method: "POST", body: form }));
+    await loadStatus();
+    showMessage(`Backup wiederhergestellt: ${payload.restored.length} Dateien.`, "ok");
+  } catch (error) {
+    showMessage(error.message);
+  }
+});
+
 els.singleForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await showSingleDay(els.singleDate.value);
@@ -262,6 +337,7 @@ els.rangeForm.addEventListener("submit", async (event) => {
     state.rangeDays = payload.days;
     state.chartVisible = false;
     renderDays(payload.days);
+    renderRangeEnhancements();
     updateCalorieChartControls();
     if (payload.days.length === 0) {
       showMessage("In diesem Zeitraum wurden keine Tage gefunden.");
@@ -286,6 +362,8 @@ async function loadStatus() {
   els.dateRange.textContent = status.firstDate && status.lastDate
     ? `${formatDate(status.firstDate)} bis ${formatDate(status.lastDate)}`
     : "-";
+  const version = status.version?.number && status.version.number !== "dev" ? `v${status.version.number}` : "dev";
+  els.appVersion.textContent = version;
   fillSettings(status.settings ?? {});
   for (const input of [els.singleDate, els.fromDate, els.toDate]) {
     if (status.firstDate) input.min = status.firstDate;
@@ -371,7 +449,7 @@ async function showSingleDay(date) {
     els.singleDate.value = date;
     updateDayNavButtons();
     state.rangeDays = [];
-    hideCalorieChart();
+    hideRangeEnhancements();
     const response = await fetch(`/api/day?date=${encodeURIComponent(date)}`);
     const payload = await readJson(response);
     renderDays([payload]);
@@ -416,6 +494,123 @@ function hideCalorieChart() {
   els.calorieChart.replaceChildren();
 }
 
+function hideRangeEnhancements() {
+  hideCalorieChart();
+  els.weekSummaryPanel.classList.add("hidden");
+  els.weekSummary.replaceChildren();
+  els.dayComparePanel.classList.add("hidden");
+  els.rangeDashboard.replaceChildren();
+}
+
+function renderRangeEnhancements() {
+  renderRangeDashboard();
+  renderWeekSummary();
+  populateDayComparison();
+  renderCalorieChart();
+}
+
+function renderRangeDashboard() {
+  const days = state.rangeDays;
+  els.rangeDashboard.replaceChildren();
+  if (days.length === 0) {
+    return;
+  }
+  const energies = days.map((day) => Number(day.total?.energy ?? 0));
+  const proteins = days.map((day) => Number(day.total?.protein ?? 0));
+  const goals = days.map((day) => Number(day.daily?.energyGoal ?? 0)).filter((value) => value > 0);
+  const maxDay = days.reduce((best, day) => Number(day.total?.energy ?? 0) > Number(best.total?.energy ?? 0) ? day : best, days[0]);
+  const minDay = days.reduce((best, day) => Number(day.total?.energy ?? 0) < Number(best.total?.energy ?? 0) ? day : best, days[0]);
+  const goalHits = days.filter((day) => Number(day.daily?.energyGoal ?? 0) > 0 && Number(day.total?.energy ?? 0) <= Number(day.daily?.energyGoal ?? 0)).length;
+  const cards = [
+    ["Tage", days.length],
+    ["Ø kcal", `${fmt(avg(energies))} kcal`],
+    ["Ø Protein", `${fmt(avg(proteins))} g`],
+    ["Ziel eingehalten", goals.length ? `${goalHits}/${goals.length}` : "-"],
+    ["Höchster Tag", `${shortDate(maxDay.date)} · ${fmt(maxDay.total.energy)} kcal`],
+    ["Niedrigster Tag", `${shortDate(minDay.date)} · ${fmt(minDay.total.energy)} kcal`]
+  ];
+  els.rangeDashboard.append(...cards.map(([label, value]) => statCard(label, value)));
+}
+
+function renderWeekSummary() {
+  const days = state.rangeDays;
+  els.weekSummaryPanel.classList.toggle("hidden", days.length < 7);
+  els.weekSummary.replaceChildren();
+  if (days.length < 7) {
+    return;
+  }
+  const groups = new Map();
+  for (const day of days) {
+    const key = weekKey(day.date);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(day);
+  }
+  const table = insightTable(["Woche", "Tage", "Gesamt kcal", "Ø kcal", "Ø Protein", "Ø Fett"]);
+  const body = table.querySelector("tbody");
+  for (const [key, weekDays] of groups.entries()) {
+    const total = sumMacros(weekDays);
+    const row = document.createElement("tr");
+    row.append(
+      td(key),
+      td(String(weekDays.length), "number-cell"),
+      td(`${fmt(total.energy)} kcal`, "number-cell"),
+      td(`${fmt(total.energy / weekDays.length)} kcal`, "number-cell"),
+      td(`${fmt(total.protein / weekDays.length)} g`, "number-cell"),
+      td(`${fmt(total.fat / weekDays.length)} g`, "number-cell")
+    );
+    body.append(row);
+  }
+  els.weekSummary.append(table);
+}
+
+function populateDayComparison() {
+  const days = state.rangeDays;
+  els.dayComparePanel.classList.toggle("hidden", days.length < 2);
+  if (days.length < 2) {
+    return;
+  }
+  const options = days.map((day) => {
+    const option = document.createElement("option");
+    option.value = day.date;
+    option.textContent = formatDate(day.date);
+    return option;
+  });
+  els.compareDayA.replaceChildren(...options.map((option) => option.cloneNode(true)));
+  els.compareDayB.replaceChildren(...options.map((option) => option.cloneNode(true)));
+  els.compareDayA.value = days[0].date;
+  els.compareDayB.value = days[days.length - 1].date;
+  renderDayComparison();
+}
+
+function renderDayComparison() {
+  const dayA = state.rangeDays.find((day) => day.date === els.compareDayA.value);
+  const dayB = state.rangeDays.find((day) => day.date === els.compareDayB.value);
+  els.compareResult.replaceChildren();
+  if (!dayA || !dayB) {
+    return;
+  }
+  const rows = [
+    ["Kalorien", dayA.total.energy, dayB.total.energy, "kcal"],
+    ["Protein", dayA.total.protein, dayB.total.protein, "g"],
+    ["KH", dayA.total.carbs, dayB.total.carbs, "g"],
+    ["Fett", dayA.total.fat, dayB.total.fat, "g"]
+  ];
+  const table = insightTable(["Makro", "Tag A", "Tag B", "Differenz"]);
+  const body = table.querySelector("tbody");
+  for (const [label, a, b, unit] of rows) {
+    const diff = Number(b ?? 0) - Number(a ?? 0);
+    const row = document.createElement("tr");
+    row.append(
+      td(label),
+      td(`${fmt(a)} ${unit}`, "number-cell"),
+      td(`${fmt(b)} ${unit}`, "number-cell"),
+      td(`${diff >= 0 ? "+" : ""}${fmt(diff)} ${unit}`, "number-cell")
+    );
+    body.append(row);
+  }
+  els.compareResult.append(table);
+}
+
 function renderCalorieChart() {
   const days = state.rangeDays;
   els.toggleCalorieChart.textContent = state.chartVisible ? "Graph ausblenden" : "Graph anzeigen";
@@ -425,14 +620,20 @@ function renderCalorieChart() {
     return;
   }
 
+  const metric = chartMetrics[state.chartMetric] ?? chartMetrics.energy;
+  els.chartMetric.value = state.chartMetric;
+  els.chartTitle.textContent = metric.title;
   const width = 920;
-  const height = 300;
+  const height = 330;
   const margin = { top: 22, right: 24, bottom: 54, left: 110 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const values = days.map((day) => Number(day.total?.energy ?? day.daily?.energy ?? 0));
-  const maxValue = Math.max(100, ...values);
-  const yMax = Math.ceil((maxValue * 1.1) / 250) * 250;
+  const values = days.map(metric.value);
+  const goals = metric.goal ? days.map(metric.goal).filter((value) => value > 0) : [];
+  const maxValue = Math.max(100, ...values, ...goals);
+  const stepBase = metric.unit === "kcal" ? 250 : 25;
+  const yMax = Math.ceil((maxValue * 1.1) / stepBase) * stepBase;
+  const average = avg(values);
   const svg = svgNode("svg", {
     viewBox: `0 0 ${width} ${height}`,
     role: "img",
@@ -444,7 +645,7 @@ function renderCalorieChart() {
     const y = margin.top + plotHeight - (value / yMax) * plotHeight;
     svg.append(
       svgNode("line", { x1: margin.left, y1: y, x2: width - margin.right, y2: y, class: "chart-grid" }),
-      svgText(margin.left - 10, y + 4, `${fmt(value)} kcal`, "chart-axis-label chart-y-label")
+      svgText(margin.left - 10, y + 4, `${fmt(value)} ${metric.unit}`, "chart-axis-label chart-y-label")
     );
   }
 
@@ -454,12 +655,30 @@ function renderCalorieChart() {
   );
 
   const pointFor = (day, index) => {
-    const value = Number(day.total?.energy ?? day.daily?.energy ?? 0);
+    const value = metric.value(day);
     const x = margin.left + (days.length === 1 ? plotWidth / 2 : (plotWidth / (days.length - 1)) * index);
     const y = margin.top + plotHeight - (value / yMax) * plotHeight;
     return { x, y, value };
   };
   const points = days.map(pointFor);
+  const avgY = margin.top + plotHeight - (average / yMax) * plotHeight;
+  svg.append(svgNode("line", { x1: margin.left, y1: avgY, x2: width - margin.right, y2: avgY, class: "chart-average-line" }));
+  svg.append(svgText(width - margin.right, avgY - 6, `Ø ${fmt(average)} ${metric.unit}`, "chart-axis-label chart-line-label"));
+
+  if (metric.goal && goals.length > 0) {
+    const goalPoints = days
+      .map((day, index) => ({ value: metric.goal(day), index }))
+      .filter((point) => point.value > 0)
+      .map((point) => {
+        const x = margin.left + (plotWidth / (days.length - 1)) * point.index;
+        const y = margin.top + plotHeight - (point.value / yMax) * plotHeight;
+        return `${x},${y}`;
+      });
+    if (goalPoints.length > 1) {
+      svg.append(svgNode("polyline", { points: goalPoints.join(" "), class: "chart-goal-line" }));
+    }
+  }
+
   svg.append(svgNode("polyline", {
     points: points.map((point) => `${point.x},${point.y}`).join(" "),
     class: "chart-line"
@@ -469,7 +688,7 @@ function renderCalorieChart() {
   days.forEach((day, index) => {
     const point = points[index];
     const group = svgNode("g", { class: "chart-point", tabindex: "0", role: "button" });
-    group.append(svgNode("title", {}, `${formatDate(day.date)}: ${fmt(point.value)} kcal - Tag in neuem Tab öffnen`));
+    group.append(svgNode("title", {}, `${formatDate(day.date)}: ${fmt(point.value)} ${metric.unit} - Tag in neuem Tab öffnen`));
     group.append(svgNode("circle", { cx: point.x, cy: point.y, r: 5 }));
     group.addEventListener("click", () => openDay(day.date));
     group.addEventListener("keydown", (event) => {
@@ -595,9 +814,24 @@ async function loadProductDays(item) {
   const payload = await readJson(await fetch(`/api/insights/product-days?${params}`));
   els.productDetail.classList.remove("hidden");
   els.productDetailTitle.textContent = productLabel(item);
+  const days = payload.days ?? [];
+  const summary = document.createElement("div");
+  summary.className = "dashboard-grid product-history-summary";
+  const total = days.reduce((sum, day) => {
+    sum.energy += Number(day.macro?.energy ?? 0);
+    sum.protein += Number(day.macro?.protein ?? 0);
+    sum.count += Number(day.count ?? 0);
+    return sum;
+  }, { energy: 0, protein: 0, count: 0 });
+  summary.append(
+    statCard("Verzehrtage", days.length),
+    statCard("Einträge", total.count),
+    statCard("Gesamt kcal", `${fmt(total.energy)} kcal`),
+    statCard("Gesamt Protein", `${fmt(total.protein)} g`)
+  );
   const table = insightTable(["Tag", "Menge", "Kalorien", "Protein", "Einträge", ""]);
   const body = table.querySelector("tbody");
-  for (const day of payload.days) {
+  for (const day of days) {
     const row = document.createElement("tr");
     row.append(
       td(formatDate(day.date)),
@@ -609,7 +843,7 @@ async function loadProductDays(item) {
     );
     body.append(row);
   }
-  els.productDayResults.replaceChildren(table);
+  els.productDayResults.replaceChildren(summary, table);
   els.productDetail.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -649,6 +883,63 @@ function renderMacroAggregation(items) {
     body.append(row);
   }
   els.insightResults.append(table);
+}
+
+async function loadClassificationRules() {
+  const payload = await readJson(await fetch("/api/item-classifications"));
+  renderClassificationRules(payload.items ?? []);
+}
+
+function renderClassificationRules(items) {
+  els.classificationRules.replaceChildren();
+  if (items.length === 0) {
+    els.classificationRules.textContent = "Keine gelernten Produktregeln vorhanden.";
+    return;
+  }
+  const table = insightTable(["Lebensmittel", "Zuordnung", ""]);
+  const body = table.querySelector("tbody");
+  for (const item of items) {
+    const row = document.createElement("tr");
+    row.append(
+      td(item.producer ? `${item.name} · ${item.producer}` : item.name),
+      td(item.classification === "drink" ? "getrunken" : "gegessen"),
+      actionTd("Löschen", async () => {
+        const payload = await readJson(await fetch("/api/item-classifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: item.key })
+        }));
+        renderClassificationRules(payload.items ?? []);
+        showMessage("Produktregel gelöscht.", "ok");
+      })
+    );
+    body.append(row);
+  }
+  els.classificationRules.append(table);
+}
+
+async function loadDataQuality() {
+  const payload = await readJson(await fetch("/api/data-quality"));
+  const items = payload.items ?? [];
+  els.dataQualityResults.replaceChildren();
+  if (items.length === 0) {
+    els.dataQualityResults.textContent = "Keine Auffälligkeiten gefunden.";
+    return;
+  }
+  const table = insightTable(["Stufe", "Tag", "Typ", "Hinweis", ""]);
+  const body = table.querySelector("tbody");
+  for (const item of items) {
+    const row = document.createElement("tr");
+    row.append(
+      td(item.severity),
+      td(formatDate(item.date)),
+      td(item.type),
+      td(item.message),
+      actionTd("Öffnen", () => openDay(item.date))
+    );
+    body.append(row);
+  }
+  els.dataQualityResults.append(table);
 }
 
 function insightTable(headers) {
@@ -930,6 +1221,41 @@ function shortDate(value) {
     day: "2-digit",
     month: "2-digit"
   }).format(new Date(`${value}T12:00:00`));
+}
+
+function statCard(label, value) {
+  const node = document.createElement("div");
+  node.className = "stat-card";
+  const title = document.createElement("span");
+  title.textContent = label;
+  const number = document.createElement("strong");
+  number.textContent = value;
+  node.append(title, number);
+  return node;
+}
+
+function avg(values) {
+  const usable = values.filter((value) => Number.isFinite(value));
+  return usable.length ? usable.reduce((sum, value) => sum + value, 0) / usable.length : 0;
+}
+
+function sumMacros(days) {
+  return days.reduce((sum, day) => {
+    sum.energy += Number(day.total?.energy ?? 0);
+    sum.carbs += Number(day.total?.carbs ?? 0);
+    sum.protein += Number(day.total?.protein ?? 0);
+    sum.fat += Number(day.total?.fat ?? 0);
+    return sum;
+  }, { energy: 0, carbs: 0, protein: 0, fat: 0 });
+}
+
+function weekKey(value) {
+  const date = parseIsoDate(value);
+  const day = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - day);
+  const monday = toIsoDate(date);
+  date.setDate(date.getDate() + 6);
+  return `${shortDate(monday)} bis ${shortDate(toIsoDate(date))}`;
 }
 
 function fmt(value) {
