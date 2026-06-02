@@ -69,7 +69,7 @@ Optional kann eine Versionsnummer uebergeben werden:
 powershell -ExecutionPolicy Bypass -File .\scripts\build-portable-windows.ps1 -Version "1.0.0"
 ```
 
-## Automatischer Build auf GitHub
+## Builds und Releases auf GitHub
 
 Der Workflow `.github/workflows/windows-portable.yml` baut bei jedem Push auf `main` automatisch die portable Windows-Version und stellt sie als GitHub-Actions-Artifact bereit.
 
@@ -82,14 +82,16 @@ Wenn du nur einen Test-Build brauchst:
 
 Hinweis: GitHub packt Artifacts selbst als ZIP. Deshalb wird dort der entpackte Portable-Ordner hochgeladen. Der Download enthaelt die EXE direkt und keine zweite ZIP-Datei im ZIP.
 
-Wenn du eine Version fuer andere bereitstellen willst, erstelle einen Tag:
+Wenn du eine Version als GitHub Release bereitstellen willst:
 
-```powershell
-git tag v1.0.0
-git push origin v1.0.0
-```
+1. Im Repository den Bereich `Actions` oeffnen
+2. Den Workflow `Windows Portable EXE` auswaehlen
+3. `Run workflow` anklicken
+4. `release_version` eintragen, z. B. `v1.0.0`
+5. Optional `release_notes` mit dem Infotext zum Release befuellen
+6. Workflow starten
 
-Bei Tags, die mit `v` beginnen, erstellt der Workflow zusaetzlich einen GitHub Release und haengt die vom Build-Skript erzeugte portable ZIP dort an. Das ist der normale Weg, um fertige Downloads bereitzustellen.
+Der Workflow erstellt dann automatisch den Git-Tag, baut die portable ZIP und haengt sie als Asset an den GitHub Release. Wenn `release_notes` leer bleibt, wird ein kurzer Standardtext verwendet.
 
 Der Build dauert typischerweise wenige Minuten. Der erste Lauf kann etwas laenger dauern, weil GitHub den Runner vorbereitet und Java einrichtet.
 

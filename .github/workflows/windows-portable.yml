@@ -4,9 +4,19 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release-Version, z. B. v1.0.0. Leer lassen, wenn nur ein Test-Build erstellt werden soll."
+        required: false
+        type: string
+      release_notes:
+        description: "Optionaler Infotext fuer den GitHub Release."
+        required: false
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
   build-windows-portable:
@@ -15,6 +25,8 @@ jobs:
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Java 21 einrichten
         uses: actions/setup-java@v5
@@ -24,7 +36,7 @@ jobs:
 
       - name: Portable Windows-Paket bauen
         shell: pwsh
-        run: ./scripts/build-portable-windows.ps1 -Version "${{ github.ref_name }}"
+        run: ./scripts/build-portable-windows.ps1 -Version "${{ inputs.release_version || github.ref_name }}"
 
       - name: Portable Ordner als Artifact bereitstellen
         uses: actions/upload-artifact@v6
@@ -32,8 +44,33 @@ jobs:
           name: Yazio-Overview-Windows-Portable
           path: dist/Yazio Overview/
 
-      - name: GitHub Release fuer Tags erstellen
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Release-Tag erstellen
+        if: github.event_name == 'workflow_dispatch' && inputs.release_version != ''
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ inputs.release_version }}"
+          git push origin "${{ inputs.release_version }}"
+
+      - name: Release-Text vorbereiten
+        if: github.event_name == 'workflow_dispatch' && inputs.release_version != ''
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RELEASE_NOTES)) {
+            "Portable Windows-Version $env:RELEASE_VERSION" | Set-Content -Path release-notes.txt -Encoding UTF8
+          } else {
+            $env:RELEASE_NOTES | Set-Content -Path release-notes.txt -Encoding UTF8
+          }
+
+      - name: GitHub Release erstellen
+        if: github.event_name == 'workflow_dispatch' && inputs.release_version != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_version }}
+          name: Yazio Overview ${{ inputs.release_version }}
+          body_path: release-notes.txt
           files: dist/Yazio-Overview-Windows-Portable.zip
