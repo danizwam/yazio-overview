@@ -51,6 +51,7 @@ import java.util.Base64;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import java.util.zip.ZipInputStream;
 
 public class YazioOverviewApp {
     private static final int PORT = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
@@ -64,6 +65,8 @@ public class YazioOverviewApp {
     private static final Path ITEM_CLASSIFICATIONS_FILE = DATA_DIR.resolve("item-classifications.json");
     private static final Path IMPORTS_DIR = DATA_DIR.resolve("imports");
     private static final int DEFAULT_SYNC_LOOKBACK_DAYS = 14;
+    private static final String APP_VERSION = configuredValue("yazio.app.version", "YAZIO_APP_VERSION", "dev");
+    private static final String BUILD_DATE = configuredValue("yazio.build.date", "YAZIO_BUILD_DATE", "");
     private static final Map<String, String> CONTENT_TYPES = Map.of(
             ".html", "text/html; charset=utf-8",
             ".css", "text/css; charset=utf-8",
@@ -91,6 +94,10 @@ public class YazioOverviewApp {
         server.createContext("/api/settings", app::settings);
         server.createContext("/api/note", app::note);
         server.createContext("/api/item-classification", app::itemClassification);
+        server.createContext("/api/item-classifications", app::itemClassifications);
+        server.createContext("/api/data-quality", app::dataQuality);
+        server.createContext("/api/backup", app::backup);
+        server.createContext("/api/restore", app::restore);
         server.createContext("/api/sync/status", app::syncStatus);
         server.createContext("/api/sync", app::sync);
         server.createContext("/api/insights/products", app::insightProducts);
@@ -151,6 +158,10 @@ public class YazioOverviewApp {
         body.put("recommendedSyncTo", recommendation.to().toString());
         body.put("oldestIncompleteDay", recommendation.oldestIncompleteDay().map(LocalDate::toString).orElse(null));
         body.put("settings", snapshot.settings().publicMap());
+        body.put("version", Map.of(
+                "number", APP_VERSION,
+                "buildDate", BUILD_DATE
+        ));
         body.put("error", snapshot.error());
         send(exchange, 200, body);
     }
@@ -273,6 +284,73 @@ public class YazioOverviewApp {
                 "classificationOverridden", !requested.equals(automatic),
                 "learnedProduct", learnProduct && canLearnProduct
         ));
+    }
+
+    private void itemClassifications(HttpExchange exchange) throws IOException {
+        if (exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 200, Map.of("items", productClassificationRules()));
+            return;
+        }
+        if (!exchange.getRequestMethod().equals("POST")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
+        String key = str(body.get("key"));
+        if (key == null || !key.startsWith("product:")) {
+            send(exchange, 400, Map.of("error", "Bitte eine Produktregel auswÃ¤hlen."));
+            return;
+        }
+        Map<String, String> overrides = new TreeMap<>(snapshot().itemClassifications());
+        overrides.remove(key);
+        Files.createDirectories(DATA_DIR);
+        Files.writeString(ITEM_CLASSIFICATIONS_FILE, JsonWriter.write(new LinkedHashMap<>(overrides)), StandardCharsets.UTF_8);
+        reload();
+        send(exchange, 200, Map.of("items", productClassificationRules()));
+    }
+
+    private void dataQuality(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        send(exchange, 200, Map.of("items", dataQualityItems()));
+    }
+
+    private void backup(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        String fileName = "Yazio-Overview-Backup_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".zip";
+        sendBytes(exchange, 200, "application/zip", fileName, backupBytes());
+    }
+
+    private void restore(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("POST")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        if (contentType == null || !contentType.contains("multipart/form-data")) {
+            send(exchange, 400, Map.of("error", "Bitte ein ZIP-Backup hochladen."));
+            return;
+        }
+        String boundary = boundary(contentType);
+        if (boundary == null) {
+            send(exchange, 400, Map.of("error", "Multipart-Boundary fehlt."));
+            return;
+        }
+        Map<String, byte[]> parts = parseMultipart(readAll(exchange.getRequestBody()), boundary);
+        byte[] backup = parts.get("backup");
+        if (backup == null || backup.length == 0) {
+            send(exchange, 400, Map.of("error", "Bitte ein ZIP-Backup auswÃ¤hlen."));
+            return;
+        }
+        List<String> restored = restoreBackup(backup);
+        reload();
+        send(exchange, 200, Map.of("restored", restored));
     }
 
     private void sync(HttpExchange exchange) throws IOException {
@@ -616,6 +694,119 @@ public class YazioOverviewApp {
         overrides.keySet().removeIf(key -> key.startsWith("product:")
                 ? !productKeys.contains(key)
                 : !currentItems.containsKey(key));
+    }
+
+    private List<Map<String, Object>> productClassificationRules() {
+        DataStore snapshot = snapshot();
+        List<Map<String, Object>> rules = new ArrayList<>();
+        for (Map.Entry<String, String> entry : snapshot.itemClassifications().entrySet()) {
+            if (!entry.getKey().startsWith("product:")) {
+                continue;
+            }
+            String productId = entry.getKey().substring("product:".length());
+            Product product = snapshot.products().get(productId);
+            Map<String, Object> rule = new LinkedHashMap<>();
+            rule.put("key", entry.getKey());
+            rule.put("productId", productId);
+            rule.put("name", product == null ? "(Unbekanntes Produkt)" : product.name());
+            rule.put("producer", product == null ? "" : product.producer());
+            rule.put("classification", entry.getValue());
+            rules.add(rule);
+        }
+        rules.sort(Comparator.comparing(rule -> String.valueOf(rule.get("name")), String.CASE_INSENSITIVE_ORDER));
+        return rules;
+    }
+
+    private List<Map<String, Object>> dataQualityItems() {
+        DataStore snapshot = snapshot();
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (Day day : snapshot.days().values()) {
+            for (ConsumedProduct entry : day.products()) {
+                Product product = snapshot.products().get(entry.productId());
+                if (product == null) {
+                    items.add(dataQualityItem("warnung", day.date(), "Unbekanntes Produkt",
+                            "Produkt-ID " + entry.productId() + " ist in products.json nicht vorhanden."));
+                    continue;
+                }
+                if (entry.amount() > 0 && macroEnergy(product, entry.amount()) <= 0) {
+                    items.add(dataQualityItem("hinweis", day.date(), "Produkt ohne Kalorien",
+                            product.name() + " hat fÃ¼r diesen Eintrag 0 kcal."));
+                }
+            }
+            for (SimpleProduct simple : day.simpleProducts()) {
+                String title = simple.aiGenerated() ? "KI erfasste Mahlzeit" : "Einfaches Produkt";
+                items.add(dataQualityItem("info", day.date(), title,
+                        (simple.name() == null || simple.name().isBlank()) ? "Eintrag ohne Namen" : simple.name()));
+            }
+        }
+        items.sort(Comparator.comparing(item -> String.valueOf(item.get("date"))));
+        return items;
+    }
+
+    private static Map<String, Object> dataQualityItem(String severity, LocalDate date, String type, String message) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("severity", severity);
+        item.put("date", date.toString());
+        item.put("type", type);
+        item.put("message", message);
+        return item;
+    }
+
+    private static double macroEnergy(Product product, double amount) {
+        return product.nutrients().getOrDefault("energy.energy", 0.0) * amount;
+    }
+
+    private byte[] backupBytes() throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            if (!Files.isDirectory(DATA_DIR)) {
+                return output.toByteArray();
+            }
+            try (var stream = Files.walk(DATA_DIR)) {
+                for (Path path : stream.filter(Files::isRegularFile).toList()) {
+                    Path relative = DATA_DIR.relativize(path);
+                    zip.putNextEntry(new ZipEntry(relative.toString().replace('\\', '/')));
+                    Files.copy(path, zip);
+                    zip.closeEntry();
+                }
+            }
+        }
+        return output.toByteArray();
+    }
+
+    private List<String> restoreBackup(byte[] bytes) throws IOException {
+        Files.createDirectories(DATA_DIR);
+        Path root = DATA_DIR.toAbsolutePath().normalize();
+        List<String> restored = new ArrayList<>();
+        try (ZipInputStream zip = new ZipInputStream(new java.io.ByteArrayInputStream(bytes), StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if (entry.isDirectory() || !allowedBackupEntry(entry.getName())) {
+                    continue;
+                }
+                Path target = root.resolve(entry.getName()).normalize();
+                if (!target.startsWith(root)) {
+                    continue;
+                }
+                Files.createDirectories(target.getParent());
+                Files.copy(zip, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                restored.add(root.relativize(target).toString().replace('\\', '/'));
+            }
+        }
+        return restored;
+    }
+
+    private static boolean allowedBackupEntry(String name) {
+        String normalized = name.replace('\\', '/');
+        if (normalized.startsWith("/") || normalized.contains("../")) {
+            return false;
+        }
+        if (normalized.equals("products.json") || normalized.equals("days.json")
+                || normalized.equals("settings.json") || normalized.equals("notes.json")
+                || normalized.equals("item-classifications.json")) {
+            return true;
+        }
+        return normalized.startsWith("imports/") && normalized.endsWith(".json");
     }
 
     private static String classificationProductKey(String productId) {
@@ -1129,6 +1320,14 @@ public class YazioOverviewApp {
             configured = System.getProperty("yazio.data.dir");
         }
         return configured == null || configured.isBlank() ? APP_BASE_DIR.resolve("data") : Path.of(configured);
+    }
+
+    private static String configuredValue(String property, String environment, String fallback) {
+        String configured = System.getProperty(property);
+        if (configured == null || configured.isBlank()) {
+            configured = System.getenv(environment);
+        }
+        return configured == null || configured.isBlank() ? fallback : configured;
     }
 
     private static Path defaultStaticDir() {

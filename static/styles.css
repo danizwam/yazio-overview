@@ -214,6 +214,13 @@ h3 {
   white-space: nowrap;
 }
 
+.app-version {
+  border-left: 1px solid var(--line);
+  padding-left: 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .status-dot {
   width: 10px;
   height: 10px;
@@ -460,6 +467,40 @@ button:disabled {
   margin-bottom: 0;
 }
 
+.compact-control {
+  min-width: 190px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 14px;
+}
+
+.stat-card {
+  min-height: 70px;
+  border: 1px solid #e5ece8;
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 12px;
+}
+
+.stat-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.stat-card strong {
+  display: block;
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
 .calorie-chart {
   overflow-x: auto;
   border: 1px solid #e5ece8;
@@ -493,6 +534,21 @@ button:disabled {
   stroke-linejoin: round;
 }
 
+.chart-average-line {
+  stroke: #7f8a57;
+  stroke-dasharray: 6 5;
+  stroke-width: 2;
+}
+
+.chart-goal-line {
+  fill: none;
+  stroke: #b16634;
+  stroke-dasharray: 3 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
 .chart-point {
   cursor: pointer;
   outline: none;
@@ -522,6 +578,36 @@ button:disabled {
 
 .chart-x-label {
   text-anchor: middle;
+}
+
+.chart-line-label {
+  text-anchor: end;
+}
+
+.sub-panel {
+  margin-top: 16px;
+  border: 1px solid #e5ece8;
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 16px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(0, 2fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.compare-result .insight-table {
+  background: #fff;
 }
 
 .empty-state {
@@ -702,6 +788,22 @@ button:disabled {
   background: #f8fbfa;
 }
 
+.product-history-summary {
+  margin: 12px;
+}
+
+.admin-panel {
+  margin-top: 18px;
+}
+
+.muted-text {
+  color: var(--muted);
+}
+
+.inline-form {
+  display: contents;
+}
+
 .day-card {
   border-radius: 8px;
   padding: 22px;
@@ -830,6 +932,8 @@ button:disabled {
   #singleForm,
   .settings-form,
   .insight-controls,
+  .dashboard-grid,
+  .compare-grid,
   .empty-state,
   .help-grid,
   .changelog-list li {

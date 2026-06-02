@@ -16,6 +16,7 @@
       <div class="status-card" id="statusCard">
         <span class="status-dot"></span>
         <span id="statusText">Lade Status...</span>
+        <span id="appVersion" class="app-version"></span>
       </div>
     </section>
 
@@ -120,11 +121,46 @@
       <section id="calorieChartPanel" class="panel chart-panel hidden">
         <header>
           <div>
-            <p class="eyebrow">Kalorienverlauf</p>
-            <h2>Konsumierte Kalorien pro Tag</h2>
+            <p class="eyebrow">Verlauf</p>
+            <h2 id="chartTitle">Konsumierte Kalorien pro Tag</h2>
           </div>
+          <label class="compact-control">
+            <span>Metrik</span>
+            <select id="chartMetric">
+              <option value="energy">Kalorien</option>
+              <option value="protein">Protein</option>
+              <option value="carbs">Kohlenhydrate</option>
+              <option value="fat">Fett</option>
+            </select>
+          </label>
         </header>
+        <div id="rangeDashboard" class="dashboard-grid"></div>
         <div id="calorieChart" class="calorie-chart"></div>
+        <section id="dayComparePanel" class="sub-panel hidden">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Tagesvergleich</p>
+              <h3>Zwei Tage gegen&uuml;berstellen</h3>
+            </div>
+          </div>
+          <div class="compare-grid">
+            <label>
+              <span>Tag A</span>
+              <select id="compareDayA"></select>
+            </label>
+            <label>
+              <span>Tag B</span>
+              <select id="compareDayB"></select>
+            </label>
+            <div id="compareResult" class="compare-result"></div>
+          </div>
+        </section>
+      </section>
+
+      <section id="weekSummaryPanel" class="panel hidden">
+        <p class="eyebrow">Wochen&uuml;bersicht</p>
+        <h2>Verdichtung nach Kalenderwochen</h2>
+        <div id="weekSummary"></div>
       </section>
 
       <section id="results" class="results"></section>
@@ -240,6 +276,34 @@
           <button type="submit">Upload speichern</button>
         </form>
       </section>
+
+      <section class="panel admin-panel">
+        <h2>Korrekturverwaltung</h2>
+        <p class="muted-text">Hier verwaltest du gelernte Produktregeln f&uuml;r gegessen/getrunken. Einzelkorrekturen bleiben an den konkreten Tageseintrag gebunden.</p>
+        <button id="loadClassificationRules" type="button" class="secondary">Produktregeln laden</button>
+        <div id="classificationRules" class="insight-results"></div>
+      </section>
+
+      <section class="panel admin-panel">
+        <h2>Datenqualit&auml;t</h2>
+        <p class="muted-text">Warnungen helfen, unbekannte Produktreferenzen, einfache Mahlzeiten und auff&auml;llige Eintr&auml;ge zu finden.</p>
+        <button id="loadDataQuality" type="button" class="secondary">Datenqualit&auml;t pr&uuml;fen</button>
+        <div id="dataQualityResults" class="insight-results"></div>
+      </section>
+
+      <section class="panel admin-panel">
+        <h2>Backup und Wiederherstellung</h2>
+        <div class="settings-form">
+          <button id="downloadBackup" type="button">Backup herunterladen</button>
+          <form id="restoreForm" class="inline-form">
+            <label>
+              <span>Backup-ZIP</span>
+              <input type="file" name="backup" accept=".zip,application/zip">
+            </label>
+            <button type="submit" class="secondary">Backup wiederherstellen</button>
+          </form>
+        </div>
+      </section>
     </section>
 
     <section id="page-help" class="page-section">
@@ -290,6 +354,13 @@
       <section class="panel changelog-panel">
         <h2>Changelog</h2>
         <ol class="changelog-list">
+          <li>
+            <time datetime="2026-06-02">02.06.2026</time>
+            <div>
+              <h3>Auswertung und Verwaltung erweitert</h3>
+              <p>Bereichsauswertungen zeigen Kennzahlen, Ziel- und Durchschnittslinien, Wochen&uuml;bersicht und Tagesvergleich. Zus&auml;tzlich gibt es Produktregelverwaltung, Datenqualit&auml;t, Backup/Restore und eine Versionsanzeige.</p>
+            </div>
+          </li>
           <li>
             <time datetime="2026-06-02">02.06.2026</time>
             <div>
