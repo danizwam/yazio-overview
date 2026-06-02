@@ -360,6 +360,22 @@ dd {
   background: #e5f2ed;
 }
 
+.chart-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-toggle::before {
+  content: "";
+  width: 18px;
+  height: 14px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  background:
+    linear-gradient(135deg, transparent 0 38%, currentColor 39% 45%, transparent 46% 100%);
+}
+
 .today-button {
   background: #f8fbfa;
   border: 1px solid #cfe2dc;
@@ -426,6 +442,86 @@ button:disabled {
   display: grid;
   gap: 18px;
   margin-top: 18px;
+}
+
+.chart-panel {
+  margin-top: 18px;
+}
+
+.chart-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.chart-panel h2 {
+  margin-bottom: 0;
+}
+
+.calorie-chart {
+  overflow-x: auto;
+  border: 1px solid #e5ece8;
+  border-radius: 8px;
+  background: #fbfdfc;
+  padding: 10px;
+}
+
+.calorie-chart svg {
+  display: block;
+  width: 100%;
+  min-width: 620px;
+  height: auto;
+}
+
+.chart-grid {
+  stroke: #dce8e3;
+  stroke-width: 1;
+}
+
+.chart-axis {
+  stroke: #627c75;
+  stroke-width: 1.4;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent-strong);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-point {
+  cursor: pointer;
+  outline: none;
+}
+
+.chart-point circle {
+  fill: #fff;
+  stroke: var(--accent-strong);
+  stroke-width: 3;
+}
+
+.chart-point:hover circle,
+.chart-point:focus circle {
+  fill: #dff1ea;
+  stroke-width: 4;
+}
+
+.chart-axis-label {
+  fill: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.chart-y-label {
+  text-anchor: end;
+}
+
+.chart-x-label {
+  text-anchor: middle;
 }
 
 .empty-state {
@@ -609,6 +705,10 @@ button:disabled {
 .day-card {
   border-radius: 8px;
   padding: 22px;
+}
+
+.day-card.highlight-day {
+  box-shadow: 0 0 0 3px rgba(31, 107, 87, 0.28);
 }
 
 .day-header,

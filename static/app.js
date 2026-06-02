@@ -1,7 +1,9 @@
 const state = {
   mode: "single",
   status: null,
-  selectedProduct: null
+  selectedProduct: null,
+  rangeDays: [],
+  chartVisible: false
 };
 
 const insightStorageKey = "yazioOverview.insightSelection";
@@ -66,6 +68,9 @@ const els = {
   rangeForm: document.querySelector("#rangeForm"),
   singleExports: document.querySelector("#singleExports"),
   rangeExports: document.querySelector("#rangeExports"),
+  toggleCalorieChart: document.querySelector("#toggleCalorieChart"),
+  calorieChartPanel: document.querySelector("#calorieChartPanel"),
+  calorieChart: document.querySelector("#calorieChart"),
   singleDate: document.querySelector("#singleDate"),
   previousDay: document.querySelector("#previousDay"),
   nextDay: document.querySelector("#nextDay"),
@@ -121,12 +126,22 @@ document.querySelectorAll(".tab").forEach((tab) => {
     els.rangeForm.classList.toggle("hidden", state.mode !== "range");
     els.singleExports.classList.toggle("hidden", state.mode !== "single");
     els.rangeExports.classList.toggle("hidden", state.mode !== "range");
+    if (state.mode !== "range") {
+      hideCalorieChart();
+    } else {
+      updateCalorieChartControls();
+    }
     clearMessage();
   });
 });
 
 document.querySelectorAll("[data-export]").forEach((button) => {
   button.addEventListener("click", () => exportFile(button.dataset.scope, button.dataset.export));
+});
+
+els.toggleCalorieChart.addEventListener("click", () => {
+  state.chartVisible = !state.chartVisible;
+  renderCalorieChart();
 });
 
 els.insightType.addEventListener("change", () => {
@@ -244,7 +259,10 @@ els.rangeForm.addEventListener("submit", async (event) => {
     clearMessage();
     const response = await fetch(`/api/range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
     const payload = await readJson(response);
+    state.rangeDays = payload.days;
+    state.chartVisible = false;
     renderDays(payload.days);
+    updateCalorieChartControls();
     if (payload.days.length === 0) {
       showMessage("In diesem Zeitraum wurden keine Tage gefunden.");
     }
@@ -328,6 +346,8 @@ function renderDays(days) {
   els.results.replaceChildren();
   for (const day of days) {
     const node = els.dayTemplate.content.firstElementChild.cloneNode(true);
+    node.id = `day-${day.date}`;
+    node.dataset.date = day.date;
     node.querySelector("h2").textContent = formatDate(day.date);
     node.querySelector(".macro-strip").append(...macroPills(day.total));
     node.querySelector(".copy-day").addEventListener("click", () => copy(day.copyText));
@@ -350,6 +370,8 @@ async function showSingleDay(date) {
     clearMessage();
     els.singleDate.value = date;
     updateDayNavButtons();
+    state.rangeDays = [];
+    hideCalorieChart();
     const response = await fetch(`/api/day?date=${encodeURIComponent(date)}`);
     const payload = await readJson(response);
     renderDays([payload]);
@@ -373,6 +395,122 @@ function updateDayNavButtons() {
   const max = parseIsoDate(els.singleDate.max);
   els.previousDay.disabled = Boolean(current && min && current <= min);
   els.nextDay.disabled = Boolean(current && max && current >= max);
+}
+
+function updateCalorieChartControls() {
+  const canShow = state.mode === "range" && state.rangeDays.length >= 2;
+  els.toggleCalorieChart.classList.toggle("hidden", !canShow);
+  if (!canShow) {
+    hideCalorieChart();
+    return;
+  }
+  els.toggleCalorieChart.textContent = state.chartVisible ? "Graph ausblenden" : "Graph anzeigen";
+  renderCalorieChart();
+}
+
+function hideCalorieChart() {
+  state.chartVisible = false;
+  els.toggleCalorieChart.classList.add("hidden");
+  els.toggleCalorieChart.textContent = "Graph anzeigen";
+  els.calorieChartPanel.classList.add("hidden");
+  els.calorieChart.replaceChildren();
+}
+
+function renderCalorieChart() {
+  const days = state.rangeDays;
+  els.toggleCalorieChart.textContent = state.chartVisible ? "Graph ausblenden" : "Graph anzeigen";
+  els.calorieChartPanel.classList.toggle("hidden", !state.chartVisible || days.length < 2);
+  els.calorieChart.replaceChildren();
+  if (!state.chartVisible || days.length < 2) {
+    return;
+  }
+
+  const width = 920;
+  const height = 300;
+  const margin = { top: 22, right: 24, bottom: 54, left: 70 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const values = days.map((day) => Number(day.total?.energy ?? day.daily?.energy ?? 0));
+  const maxValue = Math.max(100, ...values);
+  const yMax = Math.ceil((maxValue * 1.1) / 250) * 250;
+  const svg = svgNode("svg", {
+    viewBox: `0 0 ${width} ${height}`,
+    role: "img",
+    "aria-label": "Kalorienverlauf im gewählten Datumsbereich"
+  });
+
+  for (let i = 0; i <= 4; i++) {
+    const value = Math.round((yMax / 4) * i);
+    const y = margin.top + plotHeight - (value / yMax) * plotHeight;
+    svg.append(
+      svgNode("line", { x1: margin.left, y1: y, x2: width - margin.right, y2: y, class: "chart-grid" }),
+      svgText(margin.left - 10, y + 4, `${fmt(value)} kcal`, "chart-axis-label chart-y-label")
+    );
+  }
+
+  svg.append(
+    svgNode("line", { x1: margin.left, y1: margin.top, x2: margin.left, y2: margin.top + plotHeight, class: "chart-axis" }),
+    svgNode("line", { x1: margin.left, y1: margin.top + plotHeight, x2: width - margin.right, y2: margin.top + plotHeight, class: "chart-axis" })
+  );
+
+  const pointFor = (day, index) => {
+    const value = Number(day.total?.energy ?? day.daily?.energy ?? 0);
+    const x = margin.left + (days.length === 1 ? plotWidth / 2 : (plotWidth / (days.length - 1)) * index);
+    const y = margin.top + plotHeight - (value / yMax) * plotHeight;
+    return { x, y, value };
+  };
+  const points = days.map(pointFor);
+  svg.append(svgNode("polyline", {
+    points: points.map((point) => `${point.x},${point.y}`).join(" "),
+    class: "chart-line"
+  }));
+
+  const labelStep = Math.max(1, Math.ceil(days.length / 10));
+  days.forEach((day, index) => {
+    const point = points[index];
+    const group = svgNode("g", { class: "chart-point", tabindex: "0", role: "button" });
+    group.append(svgNode("title", {}, `${formatDate(day.date)}: ${fmt(point.value)} kcal`));
+    group.append(svgNode("circle", { cx: point.x, cy: point.y, r: 5 }));
+    group.addEventListener("click", () => scrollToDay(day.date));
+    group.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        scrollToDay(day.date);
+      }
+    });
+    svg.append(group);
+
+    if (index % labelStep === 0 || index === days.length - 1) {
+      svg.append(svgText(point.x, margin.top + plotHeight + 24, shortDate(day.date), "chart-axis-label chart-x-label"));
+    }
+  });
+
+  els.calorieChart.append(svg);
+}
+
+function scrollToDay(date) {
+  const target = document.querySelector(`#day-${CSS.escape(date)}`);
+  if (!target) {
+    return;
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+  target.classList.add("highlight-day");
+  window.setTimeout(() => target.classList.remove("highlight-day"), 1400);
+}
+
+function svgNode(name, attributes = {}, text = null) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+  for (const [key, value] of Object.entries(attributes)) {
+    node.setAttribute(key, String(value));
+  }
+  if (text != null) {
+    node.textContent = text;
+  }
+  return node;
+}
+
+function svgText(x, y, text, className) {
+  return svgNode("text", { x, y, class: className }, text);
 }
 
 function restoreInsightSelection() {
@@ -794,6 +932,13 @@ function formatDate(value) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric"
+  }).format(new Date(`${value}T12:00:00`));
+}
+
+function shortDate(value) {
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit"
   }).format(new Date(`${value}T12:00:00`));
 }
 
