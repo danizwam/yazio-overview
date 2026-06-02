@@ -97,6 +97,7 @@
             <button type="submit">Bereich anzeigen</button>
           </form>
           <div id="rangeExports" class="export-actions hidden">
+            <button id="toggleCalorieChart" class="secondary chart-toggle hidden" type="button" title="Kalorienverlauf anzeigen">Graph anzeigen</button>
             <button type="button" data-export="xlsx" data-scope="range">Bereich als Excel</button>
             <button type="button" data-export="pdf" data-scope="range">Bereich als PDF</button>
           </div>
@@ -114,6 +115,16 @@
           <button type="button" class="secondary" data-goto="admin">JSON manuell importieren</button>
           <button type="button" class="secondary" data-goto="help">Leitfaden lesen</button>
         </div>
+      </section>
+
+      <section id="calorieChartPanel" class="panel chart-panel hidden">
+        <header>
+          <div>
+            <p class="eyebrow">Kalorienverlauf</p>
+            <h2>Konsumierte Kalorien pro Tag</h2>
+          </div>
+        </header>
+        <div id="calorieChart" class="calorie-chart"></div>
       </section>
 
       <section id="results" class="results"></section>
@@ -267,6 +278,10 @@
             <h3>8. Essen oder Getr&auml;nk</h3>
             <p>Die automatische Zuordnung kann pro Eintrag korrigiert werden. Auf Wunsch merkt sich das Tool die Korrektur f&uuml;r das ganze Produkt.</p>
           </article>
+          <article>
+            <h3>9. Kaloriengraph</h3>
+            <p>Nach einer Bereichsauswertung kannst du den Kalorienverlauf als Graph einblenden. Ein Klick auf einen Punkt springt zum passenden Tag.</p>
+          </article>
         </div>
       </section>
     </section>
@@ -275,6 +290,13 @@
       <section class="panel changelog-panel">
         <h2>Changelog</h2>
         <ol class="changelog-list">
+          <li>
+            <time datetime="2026-06-02">02.06.2026</time>
+            <div>
+              <h3>Kaloriengraph f&uuml;r Datumsbereiche erg&auml;nzt</h3>
+              <p>Bereichsauswertungen k&ouml;nnen jetzt als klickbarer Liniengraph der t&auml;glichen Kalorien angezeigt werden.</p>
+            </div>
+          </li>
           <li>
             <time datetime="2026-06-01">01.06.2026</time>
             <div>
