@@ -487,6 +487,13 @@ button:disabled {
   font-weight: 700;
 }
 
+.message.warning {
+  margin: 0 0 18px;
+  background: #fff8e1;
+  border-color: #ecd98f;
+  color: #735300;
+}
+
 .results {
   display: grid;
   gap: 18px;
@@ -848,6 +855,12 @@ button:disabled {
 .insight-table button {
   min-height: 32px;
   padding: 0 10px;
+  margin-right: 6px;
+}
+
+.insight-table button.danger {
+  border-color: #e0b4a8;
+  color: #8a2f18;
 }
 
 .number-cell {
