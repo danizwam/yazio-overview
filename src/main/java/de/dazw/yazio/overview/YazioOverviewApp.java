@@ -1590,15 +1590,16 @@ public class YazioOverviewApp {
 
     private static String nextUserId(Map<String, User> users) {
         int next = users.keySet().stream()
+                .filter(id -> !ADMIN_ID.equals(id))
                 .mapToInt(id -> {
                     try {
                         return Integer.parseInt(id);
                     } catch (NumberFormatException ex) {
-                        return 1337;
+                        return 0;
                     }
                 })
                 .max()
-                .orElse(1337) + 1;
+                .orElse(0) + 1;
         while (users.containsKey(String.valueOf(next))) {
             next++;
         }
