@@ -1090,7 +1090,7 @@ function renderUsers(items) {
       td(user.id),
       td(user.username),
       td(user.name ?? ""),
-      td(user.admin ? "Admin" : "User"),
+      td(user.demo ? "Demo" : (user.admin ? "Admin" : "User")),
       td(user.active ? "Aktiv" : "Deaktiviert"),
       td(user.dataDir ?? ""),
       td(formatDateTime(user.createdAt)),
@@ -1104,7 +1104,7 @@ function renderUsers(items) {
 
 function userActionsTd(user) {
   const cell = document.createElement("td");
-  if (user.admin) {
+  if (user.admin || user.demo) {
     cell.textContent = "-";
     return cell;
   }
@@ -1133,7 +1133,7 @@ async function updateUserActive(id, active) {
 }
 
 async function deleteUser(id, username) {
-  if (!window.confirm(`Benutzer ${username} wirklich löschen? Der Datenordner bleibt erhalten.`)) {
+  if (!window.confirm(`Benutzer ${username} wirklich löschen? Der Datenordner wird ebenfalls entfernt.`)) {
     return;
   }
   const payload = await readJson(await fetch("/api/users", {
@@ -1142,7 +1142,7 @@ async function deleteUser(id, username) {
     body: JSON.stringify({ action: "delete", id })
   }));
   renderUsers(payload.items ?? []);
-  showMessage("Benutzer gelöscht. Der Datenordner wurde nicht entfernt.", "ok");
+  showMessage("Benutzer und Datenordner wurden gelöscht.", "ok");
 }
 
 function insightTable(headers) {
@@ -1433,9 +1433,11 @@ async function showAuthenticatedApp() {
   els.logoutButton.classList.toggle("hidden", !state.auth?.userManagement);
   els.usersNav.classList.toggle("hidden", !(state.auth?.userManagement && user?.admin));
   els.passwordPanel.classList.toggle("hidden", !state.auth?.userManagement);
-  els.passwordForm.classList.toggle("hidden", Boolean(user?.admin));
+  els.passwordForm.classList.toggle("hidden", Boolean(user?.admin || user?.demo));
   els.passwordHint.textContent = user?.admin
-    ? "Das Admin-Passwort wird in der docker-compose.yaml ueber YAZIO_ADMIN_PASSWORD verwaltet."
+    ? "Das Admin-Passwort wird ueber YAZIO_ADMIN_PASSWORD oder yazio.admin.password verwaltet."
+    : user?.demo
+    ? "Der Demo-Benutzer hat das feste Passwort Demo und speichert keine echten Daten."
     : "Hier aenderst du das Passwort fuer deinen lokalen Benutzer.";
   if (els.adminPasswordWarning) {
     els.adminPasswordWarning.classList.toggle("hidden", !state.auth?.adminPasswordDefault);

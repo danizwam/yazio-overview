@@ -19,7 +19,9 @@ environment:
   YAZIO_DEMO_MODE: "true"
 ```
 
-Im Demo-Modus wird beim Yazio-Import keine echte Yazio-Schnittstelle aufgerufen. Stattdessen erzeugt das Tool pro Browser-Session Mock-Produkte und Mock-Tage. Eingegebene Zugangsdaten werden nicht dauerhaft gespeichert oder verwendet; das Passwortfeld zeigt sessionbasiert immer das Demo-Passwort `passwordMock123`.
+Im expliziten Demo-Modus gibt es keine Userverwaltung. Beim Yazio-Import wird keine echte Yazio-Schnittstelle aufgerufen. Stattdessen erzeugt das Tool pro Browser-Session Mock-Produkte und Mock-Tage. Eingegebene Zugangsdaten werden nicht dauerhaft gespeichert oder verwendet; das Passwortfeld zeigt sessionbasiert immer das Demo-Passwort `passwordMock123`.
+
+Wenn die Userverwaltung aktiv ist, gibt es zusaetzlich den fest eingebauten Demo-Login `Demo` / `Demo`. Dieser Benutzer arbeitet ebenfalls nur mit Mock-Daten in seiner Browser-Session und beruehrt keine echten Yazio-Daten.
 
 ### Userverwaltung und Login
 
@@ -33,7 +35,7 @@ environment:
 
 Wenn die Userverwaltung aktiv ist, muss man sich vor der Nutzung einloggen. Der Admin-Benutzer heisst `admin`, hat die feste ID `1337` und verwendet das Passwort aus `YAZIO_ADMIN_PASSWORD`. Nur der Admin kann neue Benutzer anlegen. Normale Benutzer bekommen fortlaufende IDs ab `1`.
 
-Eine Anmeldung wird im Browser per Cookie fuer 30 Tage gehalten und bei Nutzung erneuert. Nach einem Neustart des Servers oder Containers muss man sich erneut anmelden, weil die Sessions nur im Arbeitsspeicher des laufenden Servers liegen.
+Eine Anmeldung wird im Browser per Cookie fuer 30 Tage gehalten, bei Nutzung erneuert und lokal in `data/sessions.json` gespeichert. Dadurch bleibt sie auch nach einem Neustart des Servers oder Containers gueltig.
 
 Die Daten werden je Benutzer getrennt gespeichert:
 
@@ -44,6 +46,23 @@ data/<user_id>/settings.json
 ```
 
 Ohne Userverwaltung ist kein Login notwendig. Das Tool nutzt dann automatisch den Admin-Benutzer mit der ID `1337` und speichert unter `data/1337`. Wenn du spaeter von Betrieb ohne Userverwaltung auf Userverwaltung wechselst, importierst du unter dem neuen Benutzer neu oder nutzt Backup/Restore.
+
+Loeschst du einen Benutzer in der Benutzerverwaltung, wird auch sein Datenordner `data/<user_id>` entfernt. Der Admin-Benutzer und der feste Demo-Benutzer koennen nicht geloescht werden.
+
+### Konfiguration ohne Docker
+
+Beim Start per Java oder als portable EXE kannst du die wichtigsten Werte in eine Datei `yazio-overview.properties` neben die gestartete App legen. Eine Vorlage liegt in `yazio-overview.properties.example`.
+
+```properties
+server.port=8080
+yazio.data.dir=data
+yazio.static.dir=static
+yazio.demo.mode=false
+yazio.user.management=true
+yazio.admin.password=bitte-aendern
+```
+
+Java-Systemproperties und Umgebungsvariablen funktionieren weiterhin und ueberschreiben die Werte aus der Datei. Eine andere Konfigdatei kannst du mit `-Dyazio.config.file=...` oder `YAZIO_CONFIG_FILE` angeben.
 
 ## Lokaler Start ohne Docker
 
