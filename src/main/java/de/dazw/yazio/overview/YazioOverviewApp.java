@@ -2,7 +2,9 @@ package de.dazw.yazio.overview;
 
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import de.dazw.yazio.overview.demo.DemoDataFactory;
 import de.dazw.yazio.overview.export.PdfExport;
 import de.dazw.yazio.overview.export.XlsxExport;
 import de.dazw.yazio.overview.json.JsonParser;
@@ -47,7 +49,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.Base64;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -67,6 +71,9 @@ public class YazioOverviewApp {
     private static final int DEFAULT_SYNC_LOOKBACK_DAYS = 14;
     private static final String APP_VERSION = configuredValue("yazio.app.version", "YAZIO_APP_VERSION", "dev");
     private static final String BUILD_DATE = configuredValue("yazio.build.date", "YAZIO_BUILD_DATE", "");
+    private static final boolean DEMO_MODE = Boolean.parseBoolean(configuredValue("yazio.demo.mode", "YAZIO_DEMO_MODE", "false"));
+    private static final String DEMO_COOKIE = "YAZIO_OVERVIEW_DEMO_SESSION";
+    private static final String DEMO_PASSWORD = "passwordMock123";
     private static final Map<String, String> CONTENT_TYPES = Map.of(
             ".html", "text/html; charset=utf-8",
             ".css", "text/css; charset=utf-8",
@@ -76,7 +83,9 @@ public class YazioOverviewApp {
     );
 
     private final Object lock = new Object();
-    private final SyncState syncState = new SyncState();
+    private final SyncState defaultSyncState = new SyncState();
+    private final Map<String, DemoSession> demoSessions = new ConcurrentHashMap<>();
+    private final ThreadLocal<String> requestSessionId = new ThreadLocal<>();
     private final ReportService reportService = new ReportService();
     private final InsightService insightService = new InsightService();
     private DataStore store = DataStore.empty();
@@ -87,28 +96,28 @@ public class YazioOverviewApp {
         app.reload();
 
         HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", PORT), 0);
-        server.createContext("/api/status", app::status);
-        server.createContext("/api/upload", app::upload);
-        server.createContext("/api/day", app::day);
-        server.createContext("/api/range", app::range);
-        server.createContext("/api/settings", app::settings);
-        server.createContext("/api/note", app::note);
-        server.createContext("/api/item-classification", app::itemClassification);
-        server.createContext("/api/item-classifications", app::itemClassifications);
-        server.createContext("/api/data-quality", app::dataQuality);
-        server.createContext("/api/backup", app::backup);
-        server.createContext("/api/restore", app::restore);
-        server.createContext("/api/sync/status", app::syncStatus);
-        server.createContext("/api/sync", app::sync);
-        server.createContext("/api/insights/products", app::insightProducts);
-        server.createContext("/api/insights/product-days", app::insightProductDays);
-        server.createContext("/api/insights/days", app::insightDays);
-        server.createContext("/api/insights/meals", app::insightMeals);
-        server.createContext("/api/insights/weekdays", app::insightWeekdays);
-        server.createContext("/api/insights/months", app::insightMonths);
-        server.createContext("/api/export/xlsx", app::exportXlsx);
-        server.createContext("/api/export/pdf", app::exportPdf);
-        server.createContext("/", app::staticFile);
+        server.createContext("/api/status", app.route(app::status));
+        server.createContext("/api/upload", app.route(app::upload));
+        server.createContext("/api/day", app.route(app::day));
+        server.createContext("/api/range", app.route(app::range));
+        server.createContext("/api/settings", app.route(app::settings));
+        server.createContext("/api/note", app.route(app::note));
+        server.createContext("/api/item-classification", app.route(app::itemClassification));
+        server.createContext("/api/item-classifications", app.route(app::itemClassifications));
+        server.createContext("/api/data-quality", app.route(app::dataQuality));
+        server.createContext("/api/backup", app.route(app::backup));
+        server.createContext("/api/restore", app.route(app::restore));
+        server.createContext("/api/sync/status", app.route(app::syncStatus));
+        server.createContext("/api/sync", app.route(app::sync));
+        server.createContext("/api/insights/products", app.route(app::insightProducts));
+        server.createContext("/api/insights/product-days", app.route(app::insightProductDays));
+        server.createContext("/api/insights/days", app.route(app::insightDays));
+        server.createContext("/api/insights/meals", app.route(app::insightMeals));
+        server.createContext("/api/insights/weekdays", app.route(app::insightWeekdays));
+        server.createContext("/api/insights/months", app.route(app::insightMonths));
+        server.createContext("/api/export/xlsx", app.route(app::exportXlsx));
+        server.createContext("/api/export/pdf", app.route(app::exportPdf));
+        server.createContext("/", app.route(app::staticFile));
         server.start();
         String url = String.format(Locale.ROOT, "http://localhost:%d", PORT);
         System.out.printf(Locale.ROOT, "Yazio Overview running on %s%n", url);
@@ -118,6 +127,10 @@ public class YazioOverviewApp {
     private void reload() {
         synchronized (lock) {
             try {
+                if (DEMO_MODE) {
+                    store = DataStore.empty();
+                    return;
+                }
                 Map<String, Product> products = Files.exists(PRODUCTS_FILE)
                         ? parseProducts(Files.readString(PRODUCTS_FILE))
                         : Map.of();
@@ -162,6 +175,10 @@ public class YazioOverviewApp {
                 "number", APP_VERSION,
                 "buildDate", BUILD_DATE
         ));
+        body.put("demoMode", DEMO_MODE);
+        if (DEMO_MODE) {
+            body.put("demoPassword", DEMO_PASSWORD);
+        }
         body.put("error", snapshot.error());
         send(exchange, 200, body);
     }
@@ -179,6 +196,18 @@ public class YazioOverviewApp {
         Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
         AppSettings existing = snapshot().settings();
         String password = str(body.get("password"));
+        if (DEMO_MODE) {
+            AppSettings updated = new AppSettings(
+                    str(body.get("name")),
+                    str(body.get("birthDate")),
+                    str(body.get("username")),
+                    Base64.getEncoder().encodeToString(DEMO_PASSWORD.getBytes(StandardCharsets.UTF_8))
+            );
+            updateStore(new DataStore(snapshot().products(), snapshot().days(), updated,
+                    snapshot().notes(), snapshot().itemClassifications()));
+            send(exchange, 200, snapshot().settings().publicMap());
+            return;
+        }
         AppSettings updated = new AppSettings(
                 str(body.get("name")),
                 str(body.get("birthDate")),
@@ -214,6 +243,12 @@ public class YazioOverviewApp {
             notes.remove(date);
         } else {
             notes.put(date, text.trim());
+        }
+        if (DEMO_MODE) {
+            updateStore(new DataStore(snapshot().products(), snapshot().days(), snapshot().settings(),
+                    notes, snapshot().itemClassifications()));
+            send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
+            return;
         }
         Files.createDirectories(DATA_DIR);
         Files.writeString(NOTES_FILE, JsonWriter.write(notesToMap(notes)), StandardCharsets.UTF_8);
@@ -274,6 +309,19 @@ public class YazioOverviewApp {
             return;
         }
 
+        if (DEMO_MODE) {
+            updateStore(new DataStore(snapshot().products(), snapshot().days(), snapshot().settings(),
+                    snapshot().notes(), overrides));
+            send(exchange, 200, Map.of(
+                    "itemId", itemId,
+                    "classification", requested,
+                    "automaticClassification", automatic,
+                    "classificationOverridden", !requested.equals(automatic),
+                    "learnedProduct", learnProduct && canLearnProduct
+            ));
+            return;
+        }
+
         Files.createDirectories(DATA_DIR);
         Files.writeString(ITEM_CLASSIFICATIONS_FILE, JsonWriter.write(new LinkedHashMap<>(overrides)), StandardCharsets.UTF_8);
         reload();
@@ -304,6 +352,12 @@ public class YazioOverviewApp {
         }
         Map<String, String> overrides = new TreeMap<>(snapshot().itemClassifications());
         overrides.remove(key);
+        if (DEMO_MODE) {
+            updateStore(new DataStore(snapshot().products(), snapshot().days(), snapshot().settings(),
+                    snapshot().notes(), overrides));
+            send(exchange, 200, Map.of("items", productClassificationRules()));
+            return;
+        }
         Files.createDirectories(DATA_DIR);
         Files.writeString(ITEM_CLASSIFICATIONS_FILE, JsonWriter.write(new LinkedHashMap<>(overrides)), StandardCharsets.UTF_8);
         reload();
@@ -330,6 +384,10 @@ public class YazioOverviewApp {
     private void restore(HttpExchange exchange) throws IOException {
         if (!exchange.getRequestMethod().equals("POST")) {
             send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        if (DEMO_MODE) {
+            send(exchange, 200, Map.of("restored", List.of("demo-session")));
             return;
         }
         String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
@@ -366,6 +424,15 @@ public class YazioOverviewApp {
             send(exchange, 400, Map.of("error", "Bitte einen gültigen Zeitraum angeben."));
             return;
         }
+        if (DEMO_MODE) {
+            if (!syncState().start(from, to)) {
+                send(exchange, 409, Map.of("error", "Es lÃ¤uft bereits eine Synchronisierung."));
+                return;
+            }
+            runDemoSync(from, to);
+            send(exchange, 202, syncState().toMap());
+            return;
+        }
         AppSettings settings = snapshot().settings();
         String username = str(body.get("username"));
         String password = str(body.get("password"));
@@ -379,7 +446,7 @@ public class YazioOverviewApp {
             send(exchange, 400, Map.of("error", "Bitte Yazio-Benutzername und Passwort speichern oder mitsenden."));
             return;
         }
-        if (!syncState.start(from, to)) {
+        if (!syncState().start(from, to)) {
             send(exchange, 409, Map.of("error", "Es läuft bereits eine Synchronisierung."));
             return;
         }
@@ -388,7 +455,7 @@ public class YazioOverviewApp {
         Thread worker = new Thread(() -> runSync(syncUsername, syncPassword, from, to), "yazio-sync");
         worker.setDaemon(true);
         worker.start();
-        send(exchange, 202, syncState.toMap());
+        send(exchange, 202, syncState().toMap());
     }
 
     private void syncStatus(HttpExchange exchange) throws IOException {
@@ -396,32 +463,68 @@ public class YazioOverviewApp {
             send(exchange, 405, Map.of("error", "Method not allowed"));
             return;
         }
-        send(exchange, 200, syncState.toMap());
+        send(exchange, 200, syncState().toMap());
+    }
+
+    private void runDemoSync(LocalDate from, LocalDate to) {
+        SyncState state = syncState();
+        try {
+            state.log("Demo-Modus aktiv: Es wird keine Verbindung zur Yazio-API aufgebaut.");
+            state.log("Erzeuge Mock-Produkte und Mock-Tage fuer " + from + " bis " + to + ".");
+            DataStore generated = DemoDataFactory.generate(from, to, snapshot().settings());
+            updateStore(new DataStore(generated.products(), generated.days(), generated.settings(),
+                    snapshot().notes(), snapshot().itemClassifications()));
+            state.log("Mock-Import abgeschlossen. Credentials wurden ignoriert.");
+            state.success(generated.days().size(), generated.products().size());
+        } catch (RuntimeException ex) {
+            state.fail(ex.getMessage());
+        }
+    }
+
+    private Map<String, Object> demoImportResponse() {
+        LocalDate to = LocalDate.now();
+        LocalDate from = to.minusDays(DEFAULT_SYNC_LOOKBACK_DAYS);
+        runDemoSync(from, to);
+        DataStore snapshot = snapshot();
+        return Map.of(
+                "updated", List.of("demo-products", "demo-days"),
+                "status", Map.of(
+                        "productCount", snapshot.products().size(),
+                        "dayCount", snapshot.days().size(),
+                        "firstDate", snapshot.firstDate().map(LocalDate::toString).orElse(null),
+                        "lastDate", snapshot.lastDate().map(LocalDate::toString).orElse(null)
+                )
+        );
     }
 
     private void runSync(String username, String password, LocalDate from, LocalDate to) {
         try {
-            syncState.log("Starte Yazio-Synchronisierung für " + from + " bis " + to + ".");
-            YazioSyncResult result = new YazioClient(syncState::log).sync(username, password, from, to);
-            syncState.log("Speichere Import-Snapshot lokal.");
+            SyncState state = syncState();
+            state.log("Starte Yazio-Synchronisierung fuer " + from + " bis " + to + ".");
+            YazioSyncResult result = new YazioClient(state::log).sync(username, password, from, to);
+            state.log("Speichere Import-Snapshot lokal.");
             Files.createDirectories(DATA_DIR);
             Map<String, Object> currentDays = readJsonObject(DAYS_FILE);
             Map<String, Object> currentProducts = readJsonObject(PRODUCTS_FILE);
             writeImportSnapshot(result, from, to);
-            syncState.log("Konsolidiere Import-Historie.");
+            state.log("Konsolidiere Import-Historie.");
             ConsolidatedImport consolidated = consolidateImports(currentDays, currentProducts);
             Files.writeString(DAYS_FILE, JsonWriter.write(consolidated.days()), StandardCharsets.UTF_8);
             Files.writeString(PRODUCTS_FILE, JsonWriter.write(consolidated.products()), StandardCharsets.UTF_8);
             reload();
-            syncState.success(consolidated.days().size(), consolidated.products().size());
+            state.success(consolidated.days().size(), consolidated.products().size());
         } catch (Exception ex) {
-            syncState.fail(ex.getMessage());
+            syncState().fail(ex.getMessage());
         }
     }
 
     private void upload(HttpExchange exchange) throws IOException {
         if (!exchange.getRequestMethod().equals("POST")) {
             send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        if (DEMO_MODE) {
+            send(exchange, 200, demoImportResponse());
             return;
         }
         String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
@@ -863,6 +966,44 @@ public class YazioOverviewApp {
         }
     }
 
+    private HttpHandler route(ExchangeHandler handler) {
+        return exchange -> {
+            String sessionId = null;
+            if (DEMO_MODE) {
+                sessionId = demoSessionId(exchange);
+                requestSessionId.set(sessionId);
+                exchange.getResponseHeaders().add("Set-Cookie",
+                        DEMO_COOKIE + "=" + sessionId + "; Path=/; SameSite=Lax; HttpOnly");
+            }
+            try {
+                handler.handle(exchange);
+            } finally {
+                if (DEMO_MODE) {
+                    requestSessionId.remove();
+                }
+            }
+        };
+    }
+
+    private String demoSessionId(HttpExchange exchange) {
+        String cookie = exchange.getRequestHeaders().getFirst("Cookie");
+        if (cookie != null) {
+            for (String part : cookie.split(";")) {
+                String trimmed = part.trim();
+                if (trimmed.startsWith(DEMO_COOKIE + "=")) {
+                    String id = trimmed.substring((DEMO_COOKIE + "=").length());
+                    if (!id.isBlank()) {
+                        demoSessions.computeIfAbsent(id, ignored -> DemoSession.create());
+                        return id;
+                    }
+                }
+            }
+        }
+        String id = UUID.randomUUID().toString();
+        demoSessions.put(id, DemoSession.create());
+        return id;
+    }
+
     private void writeImportSnapshot(YazioSyncResult result, LocalDate from, LocalDate to) throws IOException {
         LocalDateTime importedAt = LocalDateTime.now();
         String folderName = importedAt.format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
@@ -1160,9 +1301,43 @@ public class YazioOverviewApp {
     }
 
     private DataStore snapshot() {
+        if (DEMO_MODE) {
+            String sessionId = requestSessionId.get();
+            if (sessionId == null) {
+                return DataStore.empty();
+            }
+            return demoSessions.computeIfAbsent(sessionId, ignored -> DemoSession.create()).store();
+        }
         synchronized (lock) {
             return store;
         }
+    }
+
+    private void updateStore(DataStore updated) {
+        if (DEMO_MODE) {
+            String sessionId = requestSessionId.get();
+            if (sessionId != null) {
+                demoSessions.compute(sessionId, (ignored, existing) -> {
+                    DemoSession session = existing == null ? DemoSession.create() : existing;
+                    return new DemoSession(updated, session.syncState());
+                });
+            }
+            return;
+        }
+        synchronized (lock) {
+            store = updated;
+        }
+    }
+
+    private SyncState syncState() {
+        if (DEMO_MODE) {
+            String sessionId = requestSessionId.get();
+            if (sessionId == null) {
+                return defaultSyncState;
+            }
+            return demoSessions.computeIfAbsent(sessionId, ignored -> DemoSession.create()).syncState();
+        }
+        return defaultSyncState;
     }
 
     private static int mealOrder(String daytime) {
@@ -1426,6 +1601,17 @@ public class YazioOverviewApp {
     }
 
     private record ConsolidatedImport(Map<String, Object> days, Map<String, Object> products) {
+    }
+
+    private record DemoSession(DataStore store, SyncState syncState) {
+        private static DemoSession create() {
+            return new DemoSession(DemoDataFactory.emptyStore(), new SyncState());
+        }
+    }
+
+    @FunctionalInterface
+    private interface ExchangeHandler {
+        void handle(HttpExchange exchange) throws IOException;
     }
 
 }

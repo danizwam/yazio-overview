@@ -4,6 +4,8 @@ services:
     container_name: yazio-overview
     ports:
       - "8080:8080"
+    environment:
+      YAZIO_DEMO_MODE: "false"
     volumes:
       - ./data:/app/data
     restart: unless-stopped

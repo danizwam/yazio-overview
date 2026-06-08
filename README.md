@@ -10,6 +10,17 @@ docker compose up --build
 
 Danach ist die Oberfläche unter <http://localhost:8080> erreichbar. Die persistenten Daten liegen standardmäßig im lokalen Ordner `./data`.
 
+### Demo-Modus
+
+In der `docker-compose.yaml` kann der Demo-Modus ueber eine Umgebungsvariable aktiviert werden:
+
+```yaml
+environment:
+  YAZIO_DEMO_MODE: "true"
+```
+
+Im Demo-Modus wird beim Yazio-Import keine echte Yazio-Schnittstelle aufgerufen. Stattdessen erzeugt das Tool pro Browser-Session Mock-Produkte und Mock-Tage. Eingegebene Zugangsdaten werden nicht dauerhaft gespeichert oder verwendet; das Passwortfeld zeigt sessionbasiert immer das Demo-Passwort `passwordMock123`.
+
 ## Lokaler Start ohne Docker
 
 ```bash

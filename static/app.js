@@ -251,7 +251,7 @@ els.settingsForm.addEventListener("submit", async (event) => {
       })
     });
     await readJson(response);
-    els.yazioPassword.value = "";
+    els.yazioPassword.value = state.status?.demoMode ? (state.status.demoPassword ?? "passwordMock123") : "";
     await loadStatus();
     showMessage("Einstellungen gespeichert.", "ok");
   } catch (error) {
@@ -363,7 +363,7 @@ async function loadStatus() {
   els.statusText.textContent = status.error
     ? "Datenfehler"
     : status.hasProducts && status.hasDays
-      ? "Bereit"
+      ? status.demoMode ? "Demo bereit" : "Bereit"
       : "Daten importieren";
   els.productCount.textContent = String(status.productCount ?? 0);
   els.dayCount.textContent = String(status.dayCount ?? 0);
@@ -398,7 +398,12 @@ function fillSettings(settings) {
   els.profileName.value = settings.name ?? "";
   els.birthDate.value = settings.birthDate ?? "";
   els.yazioUsername.value = settings.username ?? "";
-  els.yazioPassword.placeholder = settings.hasPassword ? "Gespeichertes Passwort bleibt erhalten" : "";
+  if (state.status?.demoMode) {
+    els.yazioPassword.value = state.status.demoPassword ?? "passwordMock123";
+    els.yazioPassword.placeholder = "Demo-Passwort";
+  } else {
+    els.yazioPassword.placeholder = settings.hasPassword ? "Gespeichertes Passwort bleibt erhalten" : "";
+  }
 }
 
 async function pollSyncStatus() {
