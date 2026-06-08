@@ -73,6 +73,7 @@ public class YazioOverviewApp {
     private static final String ADMIN_PASSWORD = configuredValue("yazio.admin.password", "YAZIO_ADMIN_PASSWORD", "admin");
     private static final String DEMO_COOKIE = "YAZIO_OVERVIEW_DEMO_SESSION";
     private static final String AUTH_COOKIE = "YAZIO_OVERVIEW_AUTH";
+    private static final int AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
     private static final String DEMO_PASSWORD = "passwordMock123";
     private static final Map<String, String> CONTENT_TYPES = Map.of(
             ".html", "text/html; charset=utf-8",
@@ -224,8 +225,7 @@ public class YazioOverviewApp {
         String sessionId = UUID.randomUUID().toString();
         appSessions.put(sessionId, new AppSession(user.id(), LocalDateTime.now()));
         requestUserId.set(user.id());
-        exchange.getResponseHeaders().add("Set-Cookie",
-                AUTH_COOKIE + "=" + sessionId + "; Path=/; SameSite=Lax; HttpOnly");
+        setAuthCookie(exchange, sessionId);
         send(exchange, 200, Map.of("user", user.publicMap()));
     }
 
@@ -1074,6 +1074,10 @@ public class YazioOverviewApp {
                 AppSession appSession = appSession(exchange);
                 if (appSession != null) {
                     userId = appSession.userId();
+                    String authSessionId = cookie(exchange, AUTH_COOKIE);
+                    if (authSessionId != null) {
+                        setAuthCookie(exchange, authSessionId);
+                    }
                 } else if (protectedApi(exchange)) {
                     send(exchange, 401, Map.of("error", "Bitte einloggen."));
                     return;
@@ -1117,6 +1121,12 @@ public class YazioOverviewApp {
             }
         }
         return null;
+    }
+
+    private static void setAuthCookie(HttpExchange exchange, String sessionId) {
+        exchange.getResponseHeaders().add("Set-Cookie",
+                AUTH_COOKIE + "=" + sessionId + "; Path=/; Max-Age=" + AUTH_COOKIE_MAX_AGE_SECONDS
+                        + "; SameSite=Lax; HttpOnly");
     }
 
     private String demoSessionId(HttpExchange exchange) {

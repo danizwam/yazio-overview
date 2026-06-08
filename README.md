@@ -33,6 +33,8 @@ environment:
 
 Wenn die Userverwaltung aktiv ist, muss man sich vor der Nutzung einloggen. Der Admin-Benutzer heisst `admin`, hat die feste ID `1337` und verwendet das Passwort aus `YAZIO_ADMIN_PASSWORD`. Nur der Admin kann neue Benutzer anlegen. Normale Benutzer bekommen fortlaufende IDs ab `1`.
 
+Eine Anmeldung wird im Browser per Cookie fuer 30 Tage gehalten und bei Nutzung erneuert. Nach einem Neustart des Servers oder Containers muss man sich erneut anmelden, weil die Sessions nur im Arbeitsspeicher des laufenden Servers liegen.
+
 Die Daten werden je Benutzer getrennt gespeichert:
 
 ```text
