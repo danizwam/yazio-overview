@@ -21,6 +21,28 @@ environment:
 
 Im Demo-Modus wird beim Yazio-Import keine echte Yazio-Schnittstelle aufgerufen. Stattdessen erzeugt das Tool pro Browser-Session Mock-Produkte und Mock-Tage. Eingegebene Zugangsdaten werden nicht dauerhaft gespeichert oder verwendet; das Passwortfeld zeigt sessionbasiert immer das Demo-Passwort `passwordMock123`.
 
+### Userverwaltung und Login
+
+Die Userverwaltung kann in der `docker-compose.yaml` aktiviert werden:
+
+```yaml
+environment:
+  YAZIO_USER_MANAGEMENT: "true"
+  YAZIO_ADMIN_PASSWORD: "bitte-aendern"
+```
+
+Wenn die Userverwaltung aktiv ist, muss man sich vor der Nutzung einloggen. Der Admin-Benutzer heisst `admin`, hat die feste ID `1337` und verwendet das Passwort aus `YAZIO_ADMIN_PASSWORD`. Nur der Admin kann neue Benutzer anlegen.
+
+Die Daten werden je Benutzer getrennt gespeichert:
+
+```text
+data/<user_id>/products.json
+data/<user_id>/days.json
+data/<user_id>/settings.json
+```
+
+Ohne Userverwaltung ist kein Login notwendig. Das Tool nutzt dann automatisch den Admin-Benutzer mit der ID `1337` und speichert unter `data/1337`. Wenn du spaeter von Betrieb ohne Userverwaltung auf Userverwaltung wechselst, importierst du unter dem neuen Benutzer neu oder nutzt Backup/Restore.
+
 ## Lokaler Start ohne Docker
 
 ```bash

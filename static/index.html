@@ -7,7 +7,24 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <main class="app-shell">
+  <section id="loginScreen" class="login-screen hidden">
+    <form id="loginForm" class="login-card">
+      <p class="eyebrow">Login</p>
+      <h1>Yazio Overview</h1>
+      <label>
+        <span>Benutzername</span>
+        <input id="loginUsername" type="text" autocomplete="username" required>
+      </label>
+      <label>
+        <span>Passwort</span>
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <button type="submit">Einloggen</button>
+      <p id="loginMessage" class="login-message"></p>
+    </form>
+  </section>
+
+  <main id="appShell" class="app-shell hidden">
     <section class="topbar">
       <div>
         <p class="eyebrow">Kalorientracker Export</p>
@@ -16,7 +33,9 @@
       <div class="status-card" id="statusCard">
         <span class="status-dot"></span>
         <span id="statusText">Lade Status...</span>
+        <span id="currentUser" class="app-version"></span>
         <span id="appVersion" class="app-version"></span>
+        <button id="logoutButton" class="status-logout hidden" type="button">Logout</button>
       </div>
     </section>
 
@@ -34,6 +53,7 @@
       <button class="nav-tab" type="button" data-page="insights">Listen</button>
       <hr>
       <button class="nav-tab" type="button" data-page="profile">Profil</button>
+      <button id="usersNav" class="nav-tab hidden" type="button" data-page="users">Benutzer</button>
       <button class="nav-tab" type="button" data-page="sync">Yazio Import</button>
       <button class="nav-tab" type="button" data-page="admin">manueller Import von JSON</button>
       <hr>
@@ -304,6 +324,28 @@
             <button type="submit" class="secondary">Backup wiederherstellen</button>
           </form>
         </div>
+      </section>
+    </section>
+
+    <section id="page-users" class="page-section">
+      <section class="panel">
+        <h2>Benutzerverwaltung</h2>
+        <form id="userForm" class="settings-form">
+          <label>
+            <span>Name</span>
+            <input id="newUserName" type="text" autocomplete="name">
+          </label>
+          <label>
+            <span>Benutzername</span>
+            <input id="newUsername" type="text" autocomplete="off" required>
+          </label>
+          <label>
+            <span>Passwort</span>
+            <input id="newUserPassword" type="password" autocomplete="new-password" required>
+          </label>
+          <button type="submit">Benutzer anlegen</button>
+        </form>
+        <div id="userResults" class="insight-results"></div>
       </section>
     </section>
 
