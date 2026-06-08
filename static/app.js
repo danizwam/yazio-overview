@@ -4,7 +4,8 @@ const state = {
   selectedProduct: null,
   rangeDays: [],
   chartVisible: false,
-  chartMetric: "energy"
+  chartMetric: "energy",
+  auth: null
 };
 
 const insightStorageKey = "yazioOverview.insightSelection";
@@ -73,11 +74,20 @@ const insightSorts = {
 };
 
 const els = {
+  loginScreen: document.querySelector("#loginScreen"),
+  loginForm: document.querySelector("#loginForm"),
+  loginUsername: document.querySelector("#loginUsername"),
+  loginPassword: document.querySelector("#loginPassword"),
+  loginMessage: document.querySelector("#loginMessage"),
+  appShell: document.querySelector("#appShell"),
   menuToggle: document.querySelector("#menuToggle"),
   mainNav: document.querySelector("#mainNav"),
   currentPageLabel: document.querySelector("#currentPageLabel"),
   statusText: document.querySelector("#statusText"),
   statusDot: document.querySelector(".status-dot"),
+  currentUser: document.querySelector("#currentUser"),
+  logoutButton: document.querySelector("#logoutButton"),
+  usersNav: document.querySelector("#usersNav"),
   productCount: document.querySelector("#productCount"),
   dayCount: document.querySelector("#dayCount"),
   dateRange: document.querySelector("#dateRange"),
@@ -133,6 +143,11 @@ const els = {
   dataQualityResults: document.querySelector("#dataQualityResults"),
   downloadBackup: document.querySelector("#downloadBackup"),
   restoreForm: document.querySelector("#restoreForm"),
+  userForm: document.querySelector("#userForm"),
+  newUserName: document.querySelector("#newUserName"),
+  newUsername: document.querySelector("#newUsername"),
+  newUserPassword: document.querySelector("#newUserPassword"),
+  userResults: document.querySelector("#userResults"),
   results: document.querySelector("#results"),
   emptyState: document.querySelector("#emptyState"),
   message: document.querySelector("#message"),
@@ -142,6 +157,30 @@ const els = {
 
 document.querySelectorAll(".nav-tab").forEach((tab) => {
   tab.addEventListener("click", () => showPage(tab.dataset.page));
+});
+
+els.loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = await readJson(await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: els.loginUsername.value,
+        password: els.loginPassword.value
+      })
+    }));
+    state.auth = { userManagement: true, loggedIn: true, user: payload.user };
+    await showAuthenticatedApp();
+  } catch (error) {
+    els.loginMessage.textContent = error.message;
+  }
+});
+
+els.logoutButton.addEventListener("click", async () => {
+  await fetch("/api/logout", { method: "POST" });
+  state.auth = { userManagement: true, loggedIn: false, user: null };
+  showLogin();
 });
 
 els.menuToggle.addEventListener("click", () => {
@@ -319,6 +358,26 @@ els.restoreForm.addEventListener("submit", async (event) => {
     const payload = await readJson(await fetch("/api/restore", { method: "POST", body: form }));
     await loadStatus();
     showMessage(`Backup wiederhergestellt: ${payload.restored.length} Dateien.`, "ok");
+  } catch (error) {
+    showMessage(error.message);
+  }
+});
+
+els.userForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = await readJson(await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: els.newUserName.value,
+        username: els.newUsername.value,
+        password: els.newUserPassword.value
+      })
+    }));
+    els.userForm.reset();
+    renderUsers(payload.items ?? []);
+    showMessage("Benutzer angelegt.", "ok");
   } catch (error) {
     showMessage(error.message);
   }
@@ -987,6 +1046,28 @@ async function loadDataQuality() {
   els.dataQualityResults.append(table);
 }
 
+async function loadUsers() {
+  const payload = await readJson(await fetch("/api/users"));
+  renderUsers(payload.items ?? []);
+}
+
+function renderUsers(items) {
+  els.userResults.replaceChildren();
+  const table = insightTable(["ID", "Benutzername", "Name", "Rolle"]);
+  const body = table.querySelector("tbody");
+  for (const user of items) {
+    const row = document.createElement("tr");
+    row.append(
+      td(user.id),
+      td(user.username),
+      td(user.name ?? ""),
+      td(user.admin ? "Admin" : "User")
+    );
+    body.append(row);
+  }
+  els.userResults.append(table);
+}
+
 function insightTable(headers) {
   const table = document.createElement("table");
   table.className = "insight-table";
@@ -1246,6 +1327,9 @@ function showPage(pageName) {
   }
   closeMenu();
   clearMessage();
+  if (pageName === "users") {
+    loadUsers().catch((error) => showMessage(error.message));
+  }
 }
 
 function closeMenu() {
@@ -1254,9 +1338,40 @@ function closeMenu() {
   els.menuToggle.setAttribute("aria-label", "Menü öffnen");
 }
 
+async function initAuth() {
+  const auth = await readJson(await fetch("/api/auth/status"));
+  state.auth = auth;
+  if (auth.userManagement && !auth.loggedIn) {
+    showLogin();
+    return;
+  }
+  await showAuthenticatedApp();
+}
+
+async function showAuthenticatedApp() {
+  els.loginScreen.classList.add("hidden");
+  els.appShell.classList.remove("hidden");
+  const user = state.auth?.user;
+  els.currentUser.textContent = user ? `${user.username} (${user.id})` : "admin (1337)";
+  els.logoutButton.classList.toggle("hidden", !state.auth?.userManagement);
+  els.usersNav.classList.toggle("hidden", !(state.auth?.userManagement && user?.admin));
+  await loadStatus();
+  await openDateFromUrl();
+}
+
+function showLogin() {
+  els.appShell.classList.add("hidden");
+  els.loginScreen.classList.remove("hidden");
+  els.loginPassword.value = "";
+  els.loginMessage.textContent = "";
+}
+
 async function readJson(response) {
   const payload = await response.json();
   if (!response.ok) {
+    if (response.status === 401 && state.auth?.userManagement) {
+      showLogin();
+    }
     throw new Error(payload.error ?? `HTTP ${response.status}`);
   }
   return payload;
@@ -1321,6 +1436,7 @@ function fmt(value) {
 }
 
 restoreInsightSelection();
-loadStatus()
-  .then(openDateFromUrl)
-  .catch((error) => showMessage(error.message));
+initAuth().catch((error) => {
+  showLogin();
+  els.loginMessage.textContent = error.message;
+});

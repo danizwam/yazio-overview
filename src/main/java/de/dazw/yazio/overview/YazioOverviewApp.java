@@ -47,6 +47,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -62,17 +63,16 @@ public class YazioOverviewApp {
     private static final Path APP_BASE_DIR = appBaseDir();
     private static final Path DATA_DIR = defaultDataDir();
     private static final Path STATIC_DIR = defaultStaticDir();
-    private static final Path PRODUCTS_FILE = DATA_DIR.resolve("products.json");
-    private static final Path DAYS_FILE = DATA_DIR.resolve("days.json");
-    private static final Path SETTINGS_FILE = DATA_DIR.resolve("settings.json");
-    private static final Path NOTES_FILE = DATA_DIR.resolve("notes.json");
-    private static final Path ITEM_CLASSIFICATIONS_FILE = DATA_DIR.resolve("item-classifications.json");
-    private static final Path IMPORTS_DIR = DATA_DIR.resolve("imports");
     private static final int DEFAULT_SYNC_LOOKBACK_DAYS = 14;
     private static final String APP_VERSION = configuredValue("yazio.app.version", "YAZIO_APP_VERSION", "dev");
     private static final String BUILD_DATE = configuredValue("yazio.build.date", "YAZIO_BUILD_DATE", "");
     private static final boolean DEMO_MODE = Boolean.parseBoolean(configuredValue("yazio.demo.mode", "YAZIO_DEMO_MODE", "false"));
+    private static final boolean USER_MANAGEMENT = Boolean.parseBoolean(configuredValue("yazio.user.management", "YAZIO_USER_MANAGEMENT", "false"));
+    private static final String ADMIN_ID = "1337";
+    private static final String ADMIN_USERNAME = "admin";
+    private static final String ADMIN_PASSWORD = configuredValue("yazio.admin.password", "YAZIO_ADMIN_PASSWORD", "admin");
     private static final String DEMO_COOKIE = "YAZIO_OVERVIEW_DEMO_SESSION";
+    private static final String AUTH_COOKIE = "YAZIO_OVERVIEW_AUTH";
     private static final String DEMO_PASSWORD = "passwordMock123";
     private static final Map<String, String> CONTENT_TYPES = Map.of(
             ".html", "text/html; charset=utf-8",
@@ -85,17 +85,23 @@ public class YazioOverviewApp {
     private final Object lock = new Object();
     private final SyncState defaultSyncState = new SyncState();
     private final Map<String, DemoSession> demoSessions = new ConcurrentHashMap<>();
+    private final Map<String, AppSession> appSessions = new ConcurrentHashMap<>();
     private final ThreadLocal<String> requestSessionId = new ThreadLocal<>();
+    private final ThreadLocal<String> requestUserId = ThreadLocal.withInitial(() -> ADMIN_ID);
     private final ReportService reportService = new ReportService();
     private final InsightService insightService = new InsightService();
     private DataStore store = DataStore.empty();
 
     public static void main(String[] args) throws Exception {
-        Files.createDirectories(DATA_DIR);
+        Files.createDirectories(userDataDir(ADMIN_ID));
         YazioOverviewApp app = new YazioOverviewApp();
         app.reload();
 
         HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", PORT), 0);
+        server.createContext("/api/auth/status", app.route(app::authStatus));
+        server.createContext("/api/login", app.route(app::login));
+        server.createContext("/api/logout", app.route(app::logout));
+        server.createContext("/api/users", app.route(app::users));
         server.createContext("/api/status", app.route(app::status));
         server.createContext("/api/upload", app.route(app::upload));
         server.createContext("/api/day", app.route(app::day));
@@ -131,20 +137,20 @@ public class YazioOverviewApp {
                     store = DataStore.empty();
                     return;
                 }
-                Map<String, Product> products = Files.exists(PRODUCTS_FILE)
-                        ? parseProducts(Files.readString(PRODUCTS_FILE))
+                Map<String, Product> products = Files.exists(productsFile())
+                        ? parseProducts(Files.readString(productsFile()))
                         : Map.of();
-                Map<LocalDate, Day> days = Files.exists(DAYS_FILE)
-                        ? parseDays(Files.readString(DAYS_FILE))
+                Map<LocalDate, Day> days = Files.exists(daysFile())
+                        ? parseDays(Files.readString(daysFile()))
                         : Map.of();
-                AppSettings settings = Files.exists(SETTINGS_FILE)
-                        ? parseSettings(Files.readString(SETTINGS_FILE))
+                AppSettings settings = Files.exists(settingsFile())
+                        ? parseSettings(Files.readString(settingsFile()))
                         : AppSettings.empty();
-                Map<LocalDate, String> notes = Files.exists(NOTES_FILE)
-                        ? parseNotes(Files.readString(NOTES_FILE))
+                Map<LocalDate, String> notes = Files.exists(notesFile())
+                        ? parseNotes(Files.readString(notesFile()))
                         : Map.of();
-                Map<String, String> itemClassifications = Files.exists(ITEM_CLASSIFICATIONS_FILE)
-                        ? parseItemClassifications(Files.readString(ITEM_CLASSIFICATIONS_FILE))
+                Map<String, String> itemClassifications = Files.exists(itemClassificationsFile())
+                        ? parseItemClassifications(Files.readString(itemClassificationsFile()))
                         : Map.of();
                 store = new DataStore(products, days, settings, notes, itemClassifications);
             } catch (RuntimeException | IOException ex) {
@@ -183,6 +189,94 @@ public class YazioOverviewApp {
         send(exchange, 200, body);
     }
 
+    private void authStatus(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        User user = currentUser();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("userManagement", USER_MANAGEMENT);
+        body.put("loggedIn", !USER_MANAGEMENT || user != null);
+        body.put("user", user == null ? null : user.publicMap());
+        body.put("adminId", ADMIN_ID);
+        send(exchange, 200, body);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void login(HttpExchange exchange) throws IOException {
+        if (!USER_MANAGEMENT) {
+            send(exchange, 200, Map.of("user", adminUser().publicMap()));
+            return;
+        }
+        if (!exchange.getRequestMethod().equals("POST")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
+        String username = str(body.get("username"));
+        String password = str(body.get("password"));
+        User user = authenticate(username, password);
+        if (user == null) {
+            send(exchange, 401, Map.of("error", "Benutzername oder Passwort ist falsch."));
+            return;
+        }
+        String sessionId = UUID.randomUUID().toString();
+        appSessions.put(sessionId, new AppSession(user.id(), LocalDateTime.now()));
+        requestUserId.set(user.id());
+        exchange.getResponseHeaders().add("Set-Cookie",
+                AUTH_COOKIE + "=" + sessionId + "; Path=/; SameSite=Lax; HttpOnly");
+        send(exchange, 200, Map.of("user", user.publicMap()));
+    }
+
+    private void logout(HttpExchange exchange) throws IOException {
+        String sessionId = cookie(exchange, AUTH_COOKIE);
+        if (sessionId != null) {
+            appSessions.remove(sessionId);
+        }
+        exchange.getResponseHeaders().add("Set-Cookie",
+                AUTH_COOKIE + "=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly");
+        send(exchange, 200, Map.of("ok", true));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void users(HttpExchange exchange) throws IOException {
+        User user = currentUser();
+        if (user == null || !user.admin()) {
+            send(exchange, 403, Map.of("error", "Nur Admins koennen Benutzer verwalten."));
+            return;
+        }
+        if (exchange.getRequestMethod().equals("GET")) {
+            send(exchange, 200, Map.of("items", users().values().stream().map(User::publicMap).toList()));
+            return;
+        }
+        if (!exchange.getRequestMethod().equals("POST")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
+        String username = str(body.get("username"));
+        String password = str(body.get("password"));
+        String name = str(body.get("name"));
+        if (username == null || username.isBlank() || password == null || password.isBlank()) {
+            send(exchange, 400, Map.of("error", "Bitte Benutzername und Passwort angeben."));
+            return;
+        }
+        Map<String, User> users = new LinkedHashMap<>(users());
+        boolean exists = users.values().stream().anyMatch(existing -> existing.username().equalsIgnoreCase(username.trim()));
+        if (exists) {
+            send(exchange, 409, Map.of("error", "Der Benutzername existiert bereits."));
+            return;
+        }
+        String id = nextUserId(users);
+        User created = new User(id, username.trim(), name == null ? "" : name.trim(),
+                Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)), false);
+        users.put(id, created);
+        saveUsers(users);
+        Files.createDirectories(userDataDir(id));
+        send(exchange, 200, Map.of("user", created.publicMap(), "items", users.values().stream().map(User::publicMap).toList()));
+    }
+
     private void settings(HttpExchange exchange) throws IOException {
         if (exchange.getRequestMethod().equals("GET")) {
             send(exchange, 200, snapshot().settings().publicMap());
@@ -214,8 +308,8 @@ public class YazioOverviewApp {
                 str(body.get("username")),
                 password == null || password.isBlank() ? existing.passwordBase64() : Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8))
         );
-        Files.createDirectories(DATA_DIR);
-        Files.writeString(SETTINGS_FILE, JsonWriter.write(updated.toPersistedMap()), StandardCharsets.UTF_8);
+        Files.createDirectories(dataDir());
+        Files.writeString(settingsFile(), JsonWriter.write(updated.toPersistedMap()), StandardCharsets.UTF_8);
         reload();
         send(exchange, 200, snapshot().settings().publicMap());
     }
@@ -250,8 +344,8 @@ public class YazioOverviewApp {
             send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
             return;
         }
-        Files.createDirectories(DATA_DIR);
-        Files.writeString(NOTES_FILE, JsonWriter.write(notesToMap(notes)), StandardCharsets.UTF_8);
+        Files.createDirectories(dataDir());
+        Files.writeString(notesFile(), JsonWriter.write(notesToMap(notes)), StandardCharsets.UTF_8);
         reload();
         send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
     }
@@ -322,8 +416,8 @@ public class YazioOverviewApp {
             return;
         }
 
-        Files.createDirectories(DATA_DIR);
-        Files.writeString(ITEM_CLASSIFICATIONS_FILE, JsonWriter.write(new LinkedHashMap<>(overrides)), StandardCharsets.UTF_8);
+        Files.createDirectories(dataDir());
+        Files.writeString(itemClassificationsFile(), JsonWriter.write(new LinkedHashMap<>(overrides)), StandardCharsets.UTF_8);
         reload();
         send(exchange, 200, Map.of(
                 "itemId", itemId,
@@ -358,8 +452,8 @@ public class YazioOverviewApp {
             send(exchange, 200, Map.of("items", productClassificationRules()));
             return;
         }
-        Files.createDirectories(DATA_DIR);
-        Files.writeString(ITEM_CLASSIFICATIONS_FILE, JsonWriter.write(new LinkedHashMap<>(overrides)), StandardCharsets.UTF_8);
+        Files.createDirectories(dataDir());
+        Files.writeString(itemClassificationsFile(), JsonWriter.write(new LinkedHashMap<>(overrides)), StandardCharsets.UTF_8);
         reload();
         send(exchange, 200, Map.of("items", productClassificationRules()));
     }
@@ -503,14 +597,14 @@ public class YazioOverviewApp {
             state.log("Starte Yazio-Synchronisierung fuer " + from + " bis " + to + ".");
             YazioSyncResult result = new YazioClient(state::log).sync(username, password, from, to);
             state.log("Speichere Import-Snapshot lokal.");
-            Files.createDirectories(DATA_DIR);
-            Map<String, Object> currentDays = readJsonObject(DAYS_FILE);
-            Map<String, Object> currentProducts = readJsonObject(PRODUCTS_FILE);
+            Files.createDirectories(dataDir());
+            Map<String, Object> currentDays = readJsonObject(daysFile());
+            Map<String, Object> currentProducts = readJsonObject(productsFile());
             writeImportSnapshot(result, from, to);
             state.log("Konsolidiere Import-Historie.");
             ConsolidatedImport consolidated = consolidateImports(currentDays, currentProducts);
-            Files.writeString(DAYS_FILE, JsonWriter.write(consolidated.days()), StandardCharsets.UTF_8);
-            Files.writeString(PRODUCTS_FILE, JsonWriter.write(consolidated.products()), StandardCharsets.UTF_8);
+            Files.writeString(daysFile(), JsonWriter.write(consolidated.days()), StandardCharsets.UTF_8);
+            Files.writeString(productsFile(), JsonWriter.write(consolidated.products()), StandardCharsets.UTF_8);
             reload();
             state.success(consolidated.days().size(), consolidated.products().size());
         } catch (Exception ex) {
@@ -539,16 +633,16 @@ public class YazioOverviewApp {
         }
         byte[] request = readAll(exchange.getRequestBody());
         Map<String, byte[]> parts = parseMultipart(request, boundary);
-        Files.createDirectories(DATA_DIR);
+        Files.createDirectories(dataDir());
         List<String> updated = new ArrayList<>();
         if (parts.containsKey("products")) {
             validateJson(parts.get("products"), "products.json");
-            Files.write(PRODUCTS_FILE, parts.get("products"));
+            Files.write(productsFile(), parts.get("products"));
             updated.add("products.json");
         }
         if (parts.containsKey("days")) {
             validateJson(parts.get("days"), "days.json");
-            Files.write(DAYS_FILE, parts.get("days"));
+            Files.write(daysFile(), parts.get("days"));
             updated.add("days.json");
         }
         reload();
@@ -862,12 +956,12 @@ public class YazioOverviewApp {
     private byte[] backupBytes() throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
-            if (!Files.isDirectory(DATA_DIR)) {
+            if (!Files.isDirectory(dataDir())) {
                 return output.toByteArray();
             }
-            try (var stream = Files.walk(DATA_DIR)) {
+            try (var stream = Files.walk(dataDir())) {
                 for (Path path : stream.filter(Files::isRegularFile).toList()) {
-                    Path relative = DATA_DIR.relativize(path);
+                    Path relative = dataDir().relativize(path);
                     zip.putNextEntry(new ZipEntry(relative.toString().replace('\\', '/')));
                     Files.copy(path, zip);
                     zip.closeEntry();
@@ -878,8 +972,8 @@ public class YazioOverviewApp {
     }
 
     private List<String> restoreBackup(byte[] bytes) throws IOException {
-        Files.createDirectories(DATA_DIR);
-        Path root = DATA_DIR.toAbsolutePath().normalize();
+        Files.createDirectories(dataDir());
+        Path root = dataDir().toAbsolutePath().normalize();
         List<String> restored = new ArrayList<>();
         try (ZipInputStream zip = new ZipInputStream(new java.io.ByteArrayInputStream(bytes), StandardCharsets.UTF_8)) {
             ZipEntry entry;
@@ -969,45 +1063,77 @@ public class YazioOverviewApp {
     private HttpHandler route(ExchangeHandler handler) {
         return exchange -> {
             String sessionId = null;
+            String userId = USER_MANAGEMENT ? null : ADMIN_ID;
             if (DEMO_MODE) {
                 sessionId = demoSessionId(exchange);
                 requestSessionId.set(sessionId);
                 exchange.getResponseHeaders().add("Set-Cookie",
                         DEMO_COOKIE + "=" + sessionId + "; Path=/; SameSite=Lax; HttpOnly");
             }
+            if (USER_MANAGEMENT) {
+                AppSession appSession = appSession(exchange);
+                if (appSession != null) {
+                    userId = appSession.userId();
+                } else if (protectedApi(exchange)) {
+                    send(exchange, 401, Map.of("error", "Bitte einloggen."));
+                    return;
+                }
+            }
+            requestUserId.set(userId);
             try {
                 handler.handle(exchange);
             } finally {
                 if (DEMO_MODE) {
                     requestSessionId.remove();
                 }
+                requestUserId.remove();
             }
         };
     }
 
-    private String demoSessionId(HttpExchange exchange) {
-        String cookie = exchange.getRequestHeaders().getFirst("Cookie");
-        if (cookie != null) {
-            for (String part : cookie.split(";")) {
-                String trimmed = part.trim();
-                if (trimmed.startsWith(DEMO_COOKIE + "=")) {
-                    String id = trimmed.substring((DEMO_COOKIE + "=").length());
-                    if (!id.isBlank()) {
-                        demoSessions.computeIfAbsent(id, ignored -> DemoSession.create());
-                        return id;
-                    }
-                }
+    private boolean protectedApi(HttpExchange exchange) {
+        String path = exchange.getRequestURI().getPath();
+        return path.startsWith("/api/")
+                && !path.equals("/api/auth/status")
+                && !path.equals("/api/login")
+                && !path.equals("/api/logout");
+    }
+
+    private AppSession appSession(HttpExchange exchange) {
+        String sessionId = cookie(exchange, AUTH_COOKIE);
+        return sessionId == null ? null : appSessions.get(sessionId);
+    }
+
+    private static String cookie(HttpExchange exchange, String name) {
+        String header = exchange.getRequestHeaders().getFirst("Cookie");
+        if (header == null) {
+            return null;
+        }
+        for (String part : header.split(";")) {
+            String trimmed = part.trim();
+            if (trimmed.startsWith(name + "=")) {
+                String value = trimmed.substring((name + "=").length());
+                return value.isBlank() ? null : value;
             }
         }
-        String id = UUID.randomUUID().toString();
-        demoSessions.put(id, DemoSession.create());
-        return id;
+        return null;
+    }
+
+    private String demoSessionId(HttpExchange exchange) {
+        String id = cookie(exchange, DEMO_COOKIE);
+        if (id != null) {
+            demoSessions.computeIfAbsent(id, ignored -> DemoSession.create());
+            return id;
+        }
+        String newId = UUID.randomUUID().toString();
+        demoSessions.put(newId, DemoSession.create());
+        return newId;
     }
 
     private void writeImportSnapshot(YazioSyncResult result, LocalDate from, LocalDate to) throws IOException {
         LocalDateTime importedAt = LocalDateTime.now();
         String folderName = importedAt.format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        Path importDir = IMPORTS_DIR.resolve(folderName);
+        Path importDir = importsDir().resolve(folderName);
         Files.createDirectories(importDir);
         Files.writeString(importDir.resolve("days.json"), JsonWriter.write(result.days()), StandardCharsets.UTF_8);
         Files.writeString(importDir.resolve("products.json"), JsonWriter.write(result.products()), StandardCharsets.UTF_8);
@@ -1082,10 +1208,10 @@ public class YazioOverviewApp {
     }
 
     private List<Path> importMetadataFiles() {
-        if (!Files.isDirectory(IMPORTS_DIR)) {
+        if (!Files.isDirectory(importsDir())) {
             return List.of();
         }
-        try (var stream = Files.list(IMPORTS_DIR)) {
+        try (var stream = Files.list(importsDir())) {
             return stream
                     .map(path -> path.resolve("metadata.json"))
                     .filter(Files::isRegularFile)
@@ -1308,8 +1434,34 @@ public class YazioOverviewApp {
             }
             return demoSessions.computeIfAbsent(sessionId, ignored -> DemoSession.create()).store();
         }
-        synchronized (lock) {
-            return store;
+        return loadStore(dataDir());
+    }
+
+    private DataStore loadStore(Path directory) {
+        try {
+            Path productsFile = directory.resolve("products.json");
+            Path daysFile = directory.resolve("days.json");
+            Path settingsFile = directory.resolve("settings.json");
+            Path notesFile = directory.resolve("notes.json");
+            Path classificationsFile = directory.resolve("item-classifications.json");
+            Map<String, Product> products = Files.exists(productsFile)
+                    ? parseProducts(Files.readString(productsFile))
+                    : Map.of();
+            Map<LocalDate, Day> days = Files.exists(daysFile)
+                    ? parseDays(Files.readString(daysFile))
+                    : Map.of();
+            AppSettings settings = Files.exists(settingsFile)
+                    ? parseSettings(Files.readString(settingsFile))
+                    : AppSettings.empty();
+            Map<LocalDate, String> notes = Files.exists(notesFile)
+                    ? parseNotes(Files.readString(notesFile))
+                    : Map.of();
+            Map<String, String> itemClassifications = Files.exists(classificationsFile)
+                    ? parseItemClassifications(Files.readString(classificationsFile))
+                    : Map.of();
+            return new DataStore(products, days, settings, notes, itemClassifications);
+        } catch (RuntimeException | IOException ex) {
+            return DataStore.empty().withError(ex.getMessage());
         }
     }
 
@@ -1338,6 +1490,119 @@ public class YazioOverviewApp {
             return demoSessions.computeIfAbsent(sessionId, ignored -> DemoSession.create()).syncState();
         }
         return defaultSyncState;
+    }
+
+    private Path dataDir() {
+        return userDataDir(requestUserId.get());
+    }
+
+    private static Path userDataDir(String userId) {
+        String safeId = userId == null || userId.isBlank() ? ADMIN_ID : userId.replaceAll("[^A-Za-z0-9_-]", "_");
+        return DATA_DIR.resolve(safeId);
+    }
+
+    private Path productsFile() {
+        return dataDir().resolve("products.json");
+    }
+
+    private Path daysFile() {
+        return dataDir().resolve("days.json");
+    }
+
+    private Path settingsFile() {
+        return dataDir().resolve("settings.json");
+    }
+
+    private Path notesFile() {
+        return dataDir().resolve("notes.json");
+    }
+
+    private Path itemClassificationsFile() {
+        return dataDir().resolve("item-classifications.json");
+    }
+
+    private Path importsDir() {
+        return dataDir().resolve("imports");
+    }
+
+    private static Path usersFile() {
+        return DATA_DIR.resolve("users.json");
+    }
+
+    private User currentUser() {
+        String userId = requestUserId.get();
+        return userId == null ? null : users().get(userId);
+    }
+
+    private User adminUser() {
+        return new User(ADMIN_ID, ADMIN_USERNAME, "Admin", "", true);
+    }
+
+    private User authenticate(String username, String password) {
+        if (username == null || password == null) {
+            return null;
+        }
+        if (ADMIN_USERNAME.equalsIgnoreCase(username.trim()) && ADMIN_PASSWORD.equals(password)) {
+            return adminUser();
+        }
+        return users().values().stream()
+                .filter(user -> !user.admin())
+                .filter(user -> user.username().equalsIgnoreCase(username.trim()))
+                .filter(user -> password.equals(user.password()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Map<String, User> users() {
+        Map<String, User> users = new LinkedHashMap<>();
+        users.put(ADMIN_ID, adminUser());
+        if (!Files.isRegularFile(usersFile())) {
+            return users;
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> root = (Map<String, Object>) new JsonParser(Files.readString(usersFile())).parse();
+            Object rawItems = root.get("users");
+            if (rawItems instanceof List<?> items) {
+                for (Object raw : items) {
+                    if (raw instanceof Map<?, ?> map) {
+                        User user = User.fromMap((Map<?, ?>) map);
+                        if (user != null && !ADMIN_ID.equals(user.id())) {
+                            users.put(user.id(), user);
+                        }
+                    }
+                }
+            }
+        } catch (RuntimeException | IOException ignored) {
+            return users;
+        }
+        return users;
+    }
+
+    private void saveUsers(Map<String, User> users) throws IOException {
+        Files.createDirectories(DATA_DIR);
+        List<Map<String, Object>> items = users.values().stream()
+                .filter(user -> !user.admin())
+                .map(User::persistedMap)
+                .toList();
+        Files.writeString(usersFile(), JsonWriter.write(Map.of("users", items)), StandardCharsets.UTF_8);
+    }
+
+    private static String nextUserId(Map<String, User> users) {
+        int next = users.keySet().stream()
+                .mapToInt(id -> {
+                    try {
+                        return Integer.parseInt(id);
+                    } catch (NumberFormatException ex) {
+                        return 1337;
+                    }
+                })
+                .max()
+                .orElse(1337) + 1;
+        while (users.containsKey(String.valueOf(next))) {
+            next++;
+        }
+        return String.valueOf(next);
     }
 
     private static int mealOrder(String daytime) {
@@ -1606,6 +1871,50 @@ public class YazioOverviewApp {
     private record DemoSession(DataStore store, SyncState syncState) {
         private static DemoSession create() {
             return new DemoSession(DemoDataFactory.emptyStore(), new SyncState());
+        }
+    }
+
+    private record AppSession(String userId, LocalDateTime createdAt) {
+    }
+
+    private record User(String id, String username, String name, String passwordBase64, boolean admin) {
+        private String password() {
+            if (passwordBase64 == null || passwordBase64.isBlank()) {
+                return "";
+            }
+            try {
+                return new String(Base64.getDecoder().decode(passwordBase64), StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException ex) {
+                return "";
+            }
+        }
+
+        private Map<String, Object> publicMap() {
+            return Map.of(
+                    "id", id,
+                    "username", username,
+                    "name", name == null ? "" : name,
+                    "admin", admin
+            );
+        }
+
+        private Map<String, Object> persistedMap() {
+            return Map.of(
+                    "id", id,
+                    "username", username,
+                    "name", name == null ? "" : name,
+                    "passwordBase64", passwordBase64 == null ? "" : passwordBase64,
+                    "admin", admin
+            );
+        }
+
+        private static User fromMap(Map<?, ?> map) {
+            String id = str(map.get("id"));
+            String username = str(map.get("username"));
+            if (id == null || id.isBlank() || username == null || username.isBlank()) {
+                return null;
+            }
+            return new User(id, username, str(map.get("name")), str(map.get("passwordBase64")), bool(map.get("admin")));
         }
     }
 
