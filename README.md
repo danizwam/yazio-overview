@@ -79,6 +79,18 @@ javac -encoding UTF-8 -d out $files
 java -cp out de.dazw.yazio.overview.YazioOverviewApp
 ```
 
+## Tests ausfuehren
+
+Die grundlegenden Funktionen sind mit JUnit 5 abgedeckt. Der echte Yazio-Import wird dabei nicht getestet.
+
+Unter PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test.ps1
+```
+
+Beim ersten Lauf lädt das Skript den JUnit Console Runner in `build/tools`. Danach werden Hauptcode und Tests kompiliert und die Tests ausgefuehrt. Der GitHub-Workflow startet diese Tests ebenfalls vor dem Bau der portablen Windows-Version.
+
 ## Portable Windows-Version verwenden
 
 Wenn du die fertige portable Version nutzt, brauchst du kein Java und keine PowerShell:

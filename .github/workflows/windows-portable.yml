@@ -50,6 +50,10 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: JUnit-Tests ausfuehren
+        shell: pwsh
+        run: ./scripts/test.ps1
+
       - name: Portable Windows-Paket bauen
         shell: pwsh
         run: ./scripts/build-portable-windows.ps1 -Version "${{ inputs.release_version || github.ref_name }}"
