@@ -31,7 +31,7 @@ environment:
   YAZIO_ADMIN_PASSWORD: "bitte-aendern"
 ```
 
-Wenn die Userverwaltung aktiv ist, muss man sich vor der Nutzung einloggen. Der Admin-Benutzer heisst `admin`, hat die feste ID `1337` und verwendet das Passwort aus `YAZIO_ADMIN_PASSWORD`. Nur der Admin kann neue Benutzer anlegen.
+Wenn die Userverwaltung aktiv ist, muss man sich vor der Nutzung einloggen. Der Admin-Benutzer heisst `admin`, hat die feste ID `1337` und verwendet das Passwort aus `YAZIO_ADMIN_PASSWORD`. Nur der Admin kann neue Benutzer anlegen. Normale Benutzer bekommen fortlaufende IDs ab `1`.
 
 Die Daten werden je Benutzer getrennt gespeichert:
 
