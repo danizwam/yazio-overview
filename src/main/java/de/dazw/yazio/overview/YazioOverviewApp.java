@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.HashMap;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -59,18 +60,21 @@ import java.util.zip.ZipOutputStream;
 import java.util.zip.ZipInputStream;
 
 public class YazioOverviewApp {
-    private static final int PORT = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
     private static final Path APP_BASE_DIR = appBaseDir();
+    private static final int PORT = Integer.parseInt(configuredValue("server.port", "PORT", "8080"));
     private static final Path DATA_DIR = defaultDataDir();
     private static final Path STATIC_DIR = defaultStaticDir();
     private static final int DEFAULT_SYNC_LOOKBACK_DAYS = 14;
     private static final String APP_VERSION = configuredValue("yazio.app.version", "YAZIO_APP_VERSION", "dev");
     private static final String BUILD_DATE = configuredValue("yazio.build.date", "YAZIO_BUILD_DATE", "");
     private static final boolean DEMO_MODE = Boolean.parseBoolean(configuredValue("yazio.demo.mode", "YAZIO_DEMO_MODE", "false"));
-    private static final boolean USER_MANAGEMENT = Boolean.parseBoolean(configuredValue("yazio.user.management", "YAZIO_USER_MANAGEMENT", "false"));
+    private static final boolean USER_MANAGEMENT = !DEMO_MODE && Boolean.parseBoolean(configuredValue("yazio.user.management", "YAZIO_USER_MANAGEMENT", "false"));
     private static final String ADMIN_ID = "1337";
     private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_PASSWORD = configuredValue("yazio.admin.password", "YAZIO_ADMIN_PASSWORD", "admin");
+    private static final String DEMO_ID = "demo";
+    private static final String DEMO_USERNAME = "Demo";
+    private static final String DEMO_LOGIN_PASSWORD = "Demo";
     private static final String DEMO_COOKIE = "YAZIO_OVERVIEW_DEMO_SESSION";
     private static final String AUTH_COOKIE = "YAZIO_OVERVIEW_AUTH";
     private static final int AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -183,8 +187,8 @@ public class YazioOverviewApp {
                 "number", APP_VERSION,
                 "buildDate", BUILD_DATE
         ));
-        body.put("demoMode", DEMO_MODE);
-        if (DEMO_MODE) {
+        body.put("demoMode", demoRequest());
+        if (demoRequest()) {
             body.put("demoPassword", DEMO_PASSWORD);
         }
         body.put("error", snapshot.error());
@@ -230,6 +234,10 @@ public class YazioOverviewApp {
         appSessions.put(sessionId, appSession);
         saveAppSessions();
         markUserLogin(user.id(), now);
+        if (user.demo()) {
+            demoSessions.put(sessionId, DemoSession.create());
+            requestSessionId.set(sessionId);
+        }
         requestUserId.set(user.id());
         setAuthCookie(exchange, sessionId);
         send(exchange, 200, Map.of("user", users().get(user.id()).publicMap()));
@@ -257,8 +265,11 @@ public class YazioOverviewApp {
             send(exchange, 401, Map.of("error", "Bitte einloggen."));
             return;
         }
-        if (current.admin()) {
-            send(exchange, 400, Map.of("error", "Das Admin-Passwort wird ueber YAZIO_ADMIN_PASSWORD in der docker-compose.yaml geaendert."));
+        if (current.admin() || current.demo()) {
+            String message = current.demo()
+                    ? "Der Demo-Benutzer hat das feste Passwort Demo."
+                    : "Das Admin-Passwort wird ueber YAZIO_ADMIN_PASSWORD oder yazio.admin.password konfiguriert.";
+            send(exchange, 400, Map.of("error", message));
             return;
         }
         Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
@@ -329,7 +340,7 @@ public class YazioOverviewApp {
         LocalDateTime now = LocalDateTime.now();
         User created = new User(id, username.trim(), name == null ? "" : name.trim(),
                 Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)), false,
-                true, now.toString(), "");
+                true, now.toString(), "", false);
         users.put(id, created);
         saveUsers(users);
         Files.createDirectories(userDataDir(id));
@@ -338,8 +349,8 @@ public class YazioOverviewApp {
 
     private void changeUserActive(HttpExchange exchange, Map<String, Object> body) throws IOException {
         String id = str(body.get("id"));
-        if (id == null || ADMIN_ID.equals(id)) {
-            send(exchange, 400, Map.of("error", "Der Admin-Benutzer kann nicht deaktiviert werden."));
+        if (id == null || ADMIN_ID.equals(id) || DEMO_ID.equals(id)) {
+            send(exchange, 400, Map.of("error", "Dieser Benutzer kann nicht deaktiviert werden."));
             return;
         }
         Map<String, User> users = new LinkedHashMap<>(users());
@@ -359,8 +370,8 @@ public class YazioOverviewApp {
 
     private void deleteUser(HttpExchange exchange, Map<String, Object> body) throws IOException {
         String id = str(body.get("id"));
-        if (id == null || ADMIN_ID.equals(id)) {
-            send(exchange, 400, Map.of("error", "Der Admin-Benutzer kann nicht geloescht werden."));
+        if (id == null || ADMIN_ID.equals(id) || DEMO_ID.equals(id)) {
+            send(exchange, 400, Map.of("error", "Dieser Benutzer kann nicht geloescht werden."));
             return;
         }
         Map<String, User> users = new LinkedHashMap<>(users());
@@ -372,6 +383,7 @@ public class YazioOverviewApp {
         users.remove(id);
         saveUsers(users);
         removeSessionsForUser(id);
+        deleteUserDataDir(id);
         send(exchange, 200, Map.of("items", users().values().stream().map(User::publicMap).toList()));
     }
 
@@ -388,7 +400,7 @@ public class YazioOverviewApp {
         Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
         AppSettings existing = snapshot().settings();
         String password = str(body.get("password"));
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             AppSettings updated = new AppSettings(
                     str(body.get("name")),
                     str(body.get("birthDate")),
@@ -436,7 +448,7 @@ public class YazioOverviewApp {
         } else {
             notes.put(date, text.trim());
         }
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             updateStore(new DataStore(snapshot().products(), snapshot().days(), snapshot().settings(),
                     notes, snapshot().itemClassifications()));
             send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
@@ -501,7 +513,7 @@ public class YazioOverviewApp {
             return;
         }
 
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             updateStore(new DataStore(snapshot().products(), snapshot().days(), snapshot().settings(),
                     snapshot().notes(), overrides));
             send(exchange, 200, Map.of(
@@ -544,7 +556,7 @@ public class YazioOverviewApp {
         }
         Map<String, String> overrides = new TreeMap<>(snapshot().itemClassifications());
         overrides.remove(key);
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             updateStore(new DataStore(snapshot().products(), snapshot().days(), snapshot().settings(),
                     snapshot().notes(), overrides));
             send(exchange, 200, Map.of("items", productClassificationRules()));
@@ -578,7 +590,7 @@ public class YazioOverviewApp {
             send(exchange, 405, Map.of("error", "Method not allowed"));
             return;
         }
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             send(exchange, 200, Map.of("restored", List.of("demo-session")));
             return;
         }
@@ -616,7 +628,7 @@ public class YazioOverviewApp {
             send(exchange, 400, Map.of("error", "Bitte einen gültigen Zeitraum angeben."));
             return;
         }
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             if (!syncState().start(from, to)) {
                 send(exchange, 409, Map.of("error", "Es lÃ¤uft bereits eine Synchronisierung."));
                 return;
@@ -715,7 +727,7 @@ public class YazioOverviewApp {
             send(exchange, 405, Map.of("error", "Method not allowed"));
             return;
         }
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             send(exchange, 200, demoImportResponse());
             return;
         }
@@ -1174,6 +1186,10 @@ public class YazioOverviewApp {
                     userId = appSession.userId();
                     String authSessionId = cookie(exchange, AUTH_COOKIE);
                     if (authSessionId != null) {
+                        if (DEMO_ID.equals(userId)) {
+                            requestSessionId.set(authSessionId);
+                            demoSessions.computeIfAbsent(authSessionId, ignored -> DemoSession.create());
+                        }
                         refreshAppSession(authSessionId, appSession);
                         setAuthCookie(exchange, authSessionId);
                     }
@@ -1186,9 +1202,7 @@ public class YazioOverviewApp {
             try {
                 handler.handle(exchange);
             } finally {
-                if (DEMO_MODE) {
-                    requestSessionId.remove();
-                }
+                requestSessionId.remove();
                 requestUserId.remove();
             }
         };
@@ -1570,7 +1584,7 @@ public class YazioOverviewApp {
     }
 
     private DataStore snapshot() {
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             String sessionId = requestSessionId.get();
             if (sessionId == null) {
                 return DataStore.empty();
@@ -1609,7 +1623,7 @@ public class YazioOverviewApp {
     }
 
     private void updateStore(DataStore updated) {
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             String sessionId = requestSessionId.get();
             if (sessionId != null) {
                 demoSessions.compute(sessionId, (ignored, existing) -> {
@@ -1625,7 +1639,7 @@ public class YazioOverviewApp {
     }
 
     private SyncState syncState() {
-        if (DEMO_MODE) {
+        if (demoRequest()) {
             String sessionId = requestSessionId.get();
             if (sessionId == null) {
                 return defaultSyncState;
@@ -1633,6 +1647,10 @@ public class YazioOverviewApp {
             return demoSessions.computeIfAbsent(sessionId, ignored -> DemoSession.create()).syncState();
         }
         return defaultSyncState;
+    }
+
+    private boolean demoRequest() {
+        return DEMO_MODE || DEMO_ID.equals(requestUserId.get());
     }
 
     private Path dataDir() {
@@ -1682,12 +1700,19 @@ public class YazioOverviewApp {
     }
 
     private User adminUser() {
-        return new User(ADMIN_ID, ADMIN_USERNAME, "Admin", "", true, true, "", "");
+        return new User(ADMIN_ID, ADMIN_USERNAME, "Admin", "", true, true, "", "", false);
+    }
+
+    private User demoUser() {
+        return new User(DEMO_ID, DEMO_USERNAME, "Demo", "", false, true, "", "", true);
     }
 
     private User authenticate(String username, String password) {
         if (username == null || password == null) {
             return null;
+        }
+        if (DEMO_USERNAME.equalsIgnoreCase(username.trim()) && DEMO_LOGIN_PASSWORD.equals(password)) {
+            return demoUser();
         }
         if (ADMIN_USERNAME.equalsIgnoreCase(username.trim()) && ADMIN_PASSWORD.equals(password)) {
             return adminUser();
@@ -1704,6 +1729,9 @@ public class YazioOverviewApp {
     private Map<String, User> users() {
         Map<String, User> users = new LinkedHashMap<>();
         users.put(ADMIN_ID, adminUser());
+        if (USER_MANAGEMENT) {
+            users.put(DEMO_ID, demoUser());
+        }
         if (!Files.isRegularFile(usersFile())) {
             return users;
         }
@@ -1715,7 +1743,7 @@ public class YazioOverviewApp {
                 for (Object raw : items) {
                     if (raw instanceof Map<?, ?> map) {
                         User user = User.fromMap((Map<?, ?>) map);
-                        if (user != null && !ADMIN_ID.equals(user.id())) {
+                        if (user != null && !ADMIN_ID.equals(user.id()) && !DEMO_ID.equals(user.id())) {
                             users.put(user.id(), user);
                         }
                     }
@@ -1744,6 +1772,7 @@ public class YazioOverviewApp {
         Files.createDirectories(DATA_DIR);
         List<Map<String, Object>> items = users.values().stream()
                 .filter(user -> !user.admin())
+                .filter(user -> !user.demo())
                 .map(User::persistedMap)
                 .toList();
         Files.writeString(usersFile(), JsonWriter.write(Map.of("users", items)), StandardCharsets.UTF_8);
@@ -1804,6 +1833,20 @@ public class YazioOverviewApp {
     private void removeSessionsForUser(String userId) throws IOException {
         appSessions.entrySet().removeIf(entry -> Objects.equals(entry.getValue().userId(), userId));
         saveAppSessions();
+    }
+
+    private void deleteUserDataDir(String userId) throws IOException {
+        Path dataRoot = DATA_DIR.toAbsolutePath().normalize();
+        Path userDir = userDataDir(userId).toAbsolutePath().normalize();
+        if (!userDir.startsWith(dataRoot) || userDir.equals(dataRoot) || !Files.exists(userDir)) {
+            return;
+        }
+        try (var stream = Files.walk(userDir)) {
+            List<Path> paths = stream.sorted(Comparator.reverseOrder()).toList();
+            for (Path path : paths) {
+                Files.deleteIfExists(path);
+            }
+        }
     }
 
     private static int mealOrder(String daytime) {
@@ -1964,10 +2007,7 @@ public class YazioOverviewApp {
     }
 
     private static Path defaultDataDir() {
-        String configured = System.getenv("YAZIO_DATA_DIR");
-        if (configured == null || configured.isBlank()) {
-            configured = System.getProperty("yazio.data.dir");
-        }
+        String configured = configuredValue("yazio.data.dir", "YAZIO_DATA_DIR", "");
         return configured == null || configured.isBlank() ? APP_BASE_DIR.resolve("data") : Path.of(configured);
     }
 
@@ -1976,14 +2016,42 @@ public class YazioOverviewApp {
         if (configured == null || configured.isBlank()) {
             configured = System.getenv(environment);
         }
+        if (configured == null || configured.isBlank()) {
+            configured = ConfigHolder.CONFIG.getProperty(property);
+        }
         return configured == null || configured.isBlank() ? fallback : configured;
     }
 
-    private static Path defaultStaticDir() {
-        String configured = System.getenv("YAZIO_STATIC_DIR");
+    private static Path defaultConfigFile() {
+        String configured = System.getProperty("yazio.config.file");
         if (configured == null || configured.isBlank()) {
-            configured = System.getProperty("yazio.static.dir");
+            configured = System.getenv("YAZIO_CONFIG_FILE");
         }
+        return configured == null || configured.isBlank()
+                ? APP_BASE_DIR.resolve("yazio-overview.properties")
+                : Path.of(configured);
+    }
+
+    private static Properties loadConfiguration() {
+        Properties properties = new Properties();
+        Path file = defaultConfigFile();
+        if (!Files.isRegularFile(file)) {
+            return properties;
+        }
+        try (InputStream input = Files.newInputStream(file)) {
+            properties.load(input);
+        } catch (IOException ignored) {
+            // Eine kaputte optionale Konfigdatei darf den Start nicht verhindern.
+        }
+        return properties;
+    }
+
+    private static final class ConfigHolder {
+        private static final Properties CONFIG = loadConfiguration();
+    }
+
+    private static Path defaultStaticDir() {
+        String configured = configuredValue("yazio.static.dir", "YAZIO_STATIC_DIR", "");
         if (configured != null && !configured.isBlank()) {
             return Path.of(configured);
         }
@@ -2107,7 +2175,7 @@ public class YazioOverviewApp {
     }
 
     private record User(String id, String username, String name, String passwordBase64, boolean admin,
-                        boolean active, String createdAt, String lastLogin) {
+                        boolean active, String createdAt, String lastLogin, boolean demo) {
         private String password() {
             if (passwordBase64 == null || passwordBase64.isBlank()) {
                 return "";
@@ -2128,7 +2196,8 @@ public class YazioOverviewApp {
             map.put("active", active);
             map.put("createdAt", createdAt == null ? "" : createdAt);
             map.put("lastLogin", lastLogin == null ? "" : lastLogin);
-            map.put("dataDir", "data/" + id);
+            map.put("demo", demo);
+            map.put("dataDir", demo ? "Demo-Session" : "data/" + id);
             return map;
         }
 
@@ -2142,21 +2211,22 @@ public class YazioOverviewApp {
             map.put("active", active);
             map.put("createdAt", createdAt == null ? "" : createdAt);
             map.put("lastLogin", lastLogin == null ? "" : lastLogin);
+            map.put("demo", demo);
             return map;
         }
 
         private User withPassword(String password) {
             return new User(id, username, name,
                     Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)),
-                    admin, active, createdAt, lastLogin);
+                    admin, active, createdAt, lastLogin, demo);
         }
 
         private User withActive(boolean active) {
-            return new User(id, username, name, passwordBase64, admin, active, createdAt, lastLogin);
+            return new User(id, username, name, passwordBase64, admin, active, createdAt, lastLogin, demo);
         }
 
         private User withLastLogin(String lastLogin) {
-            return new User(id, username, name, passwordBase64, admin, active, createdAt, lastLogin);
+            return new User(id, username, name, passwordBase64, admin, active, createdAt, lastLogin, demo);
         }
 
         private static User fromMap(Map<?, ?> map) {
@@ -2168,7 +2238,8 @@ public class YazioOverviewApp {
             Object activeValue = map.get("active");
             boolean active = activeValue == null || bool(activeValue);
             return new User(id, username, str(map.get("name")), str(map.get("passwordBase64")),
-                    bool(map.get("admin")), active, str(map.get("createdAt")), str(map.get("lastLogin")));
+                    bool(map.get("admin")), active, str(map.get("createdAt")), str(map.get("lastLogin")),
+                    bool(map.get("demo")));
         }
     }
 
