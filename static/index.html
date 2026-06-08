@@ -280,6 +280,22 @@
           <button type="submit">Einstellungen speichern</button>
         </form>
       </section>
+
+      <section id="passwordPanel" class="panel hidden">
+        <h2>Passwort &auml;ndern</h2>
+        <p id="passwordHint" class="muted-text"></p>
+        <form id="passwordForm" class="settings-form">
+          <label>
+            <span>Aktuelles Passwort</span>
+            <input id="currentPassword" type="password" autocomplete="current-password">
+          </label>
+          <label>
+            <span>Neues Passwort</span>
+            <input id="newPassword" type="password" autocomplete="new-password">
+          </label>
+          <button type="submit">Passwort speichern</button>
+        </form>
+      </section>
     </section>
 
     <section id="page-admin" class="page-section">
@@ -330,6 +346,7 @@
     <section id="page-users" class="page-section">
       <section class="panel">
         <h2>Benutzerverwaltung</h2>
+        <p id="adminPasswordWarning" class="message warning hidden">Das Admin-Passwort ist noch der Standardwert <strong>admin</strong>. Bitte setze in der docker-compose.yaml ein eigenes <code>YAZIO_ADMIN_PASSWORD</code>.</p>
         <form id="userForm" class="settings-form">
           <label>
             <span>Name</span>

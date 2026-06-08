@@ -103,6 +103,7 @@ public class YazioOverviewApp {
         server.createContext("/api/login", app.route(app::login));
         server.createContext("/api/logout", app.route(app::logout));
         server.createContext("/api/users", app.route(app::users));
+        server.createContext("/api/password", app.route(app::password));
         server.createContext("/api/status", app.route(app::status));
         server.createContext("/api/upload", app.route(app::upload));
         server.createContext("/api/day", app.route(app::day));
@@ -201,6 +202,7 @@ public class YazioOverviewApp {
         body.put("loggedIn", !USER_MANAGEMENT || user != null);
         body.put("user", user == null ? null : user.publicMap());
         body.put("adminId", ADMIN_ID);
+        body.put("adminPasswordDefault", USER_MANAGEMENT && "admin".equals(ADMIN_PASSWORD));
         send(exchange, 200, body);
     }
 
@@ -223,19 +225,57 @@ public class YazioOverviewApp {
             return;
         }
         String sessionId = UUID.randomUUID().toString();
-        appSessions.put(sessionId, new AppSession(user.id(), LocalDateTime.now()));
+        LocalDateTime now = LocalDateTime.now();
+        AppSession appSession = new AppSession(user.id(), now, now, now.plusSeconds(AUTH_COOKIE_MAX_AGE_SECONDS));
+        appSessions.put(sessionId, appSession);
+        saveAppSessions();
+        markUserLogin(user.id(), now);
         requestUserId.set(user.id());
         setAuthCookie(exchange, sessionId);
-        send(exchange, 200, Map.of("user", user.publicMap()));
+        send(exchange, 200, Map.of("user", users().get(user.id()).publicMap()));
     }
 
     private void logout(HttpExchange exchange) throws IOException {
         String sessionId = cookie(exchange, AUTH_COOKIE);
         if (sessionId != null) {
             appSessions.remove(sessionId);
+            saveAppSessions();
         }
         exchange.getResponseHeaders().add("Set-Cookie",
                 AUTH_COOKIE + "=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly");
+        send(exchange, 200, Map.of("ok", true));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void password(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("POST")) {
+            send(exchange, 405, Map.of("error", "Method not allowed"));
+            return;
+        }
+        User current = currentUser();
+        if (current == null) {
+            send(exchange, 401, Map.of("error", "Bitte einloggen."));
+            return;
+        }
+        if (current.admin()) {
+            send(exchange, 400, Map.of("error", "Das Admin-Passwort wird ueber YAZIO_ADMIN_PASSWORD in der docker-compose.yaml geaendert."));
+            return;
+        }
+        Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
+        String currentPassword = str(body.get("currentPassword"));
+        String newPassword = str(body.get("newPassword"));
+        if (newPassword == null || newPassword.isBlank()) {
+            send(exchange, 400, Map.of("error", "Bitte ein neues Passwort angeben."));
+            return;
+        }
+        if (!Objects.equals(current.password(), currentPassword)) {
+            send(exchange, 403, Map.of("error", "Das aktuelle Passwort ist falsch."));
+            return;
+        }
+        Map<String, User> users = new LinkedHashMap<>(users());
+        User updated = current.withPassword(newPassword);
+        users.put(updated.id(), updated);
+        saveUsers(users);
         send(exchange, 200, Map.of("ok", true));
     }
 
@@ -255,6 +295,23 @@ public class YazioOverviewApp {
             return;
         }
         Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
+        String action = str(body.get("action"));
+        if (action == null || action.isBlank() || "create".equals(action)) {
+            createUser(exchange, body);
+            return;
+        }
+        if ("active".equals(action)) {
+            changeUserActive(exchange, body);
+            return;
+        }
+        if ("delete".equals(action)) {
+            deleteUser(exchange, body);
+            return;
+        }
+        send(exchange, 400, Map.of("error", "Unbekannte Benutzeraktion."));
+    }
+
+    private void createUser(HttpExchange exchange, Map<String, Object> body) throws IOException {
         String username = str(body.get("username"));
         String password = str(body.get("password"));
         String name = str(body.get("name"));
@@ -269,12 +326,53 @@ public class YazioOverviewApp {
             return;
         }
         String id = nextUserId(users);
+        LocalDateTime now = LocalDateTime.now();
         User created = new User(id, username.trim(), name == null ? "" : name.trim(),
-                Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)), false);
+                Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)), false,
+                true, now.toString(), "");
         users.put(id, created);
         saveUsers(users);
         Files.createDirectories(userDataDir(id));
         send(exchange, 200, Map.of("user", created.publicMap(), "items", users.values().stream().map(User::publicMap).toList()));
+    }
+
+    private void changeUserActive(HttpExchange exchange, Map<String, Object> body) throws IOException {
+        String id = str(body.get("id"));
+        if (id == null || ADMIN_ID.equals(id)) {
+            send(exchange, 400, Map.of("error", "Der Admin-Benutzer kann nicht deaktiviert werden."));
+            return;
+        }
+        Map<String, User> users = new LinkedHashMap<>(users());
+        User target = users.get(id);
+        if (target == null || target.admin()) {
+            send(exchange, 404, Map.of("error", "Benutzer nicht gefunden."));
+            return;
+        }
+        boolean active = bool(body.get("active"));
+        users.put(id, target.withActive(active));
+        saveUsers(users);
+        if (!active) {
+            removeSessionsForUser(id);
+        }
+        send(exchange, 200, Map.of("items", users().values().stream().map(User::publicMap).toList()));
+    }
+
+    private void deleteUser(HttpExchange exchange, Map<String, Object> body) throws IOException {
+        String id = str(body.get("id"));
+        if (id == null || ADMIN_ID.equals(id)) {
+            send(exchange, 400, Map.of("error", "Der Admin-Benutzer kann nicht geloescht werden."));
+            return;
+        }
+        Map<String, User> users = new LinkedHashMap<>(users());
+        User target = users.get(id);
+        if (target == null || target.admin()) {
+            send(exchange, 404, Map.of("error", "Benutzer nicht gefunden."));
+            return;
+        }
+        users.remove(id);
+        saveUsers(users);
+        removeSessionsForUser(id);
+        send(exchange, 200, Map.of("items", users().values().stream().map(User::publicMap).toList()));
     }
 
     private void settings(HttpExchange exchange) throws IOException {
@@ -1076,6 +1174,7 @@ public class YazioOverviewApp {
                     userId = appSession.userId();
                     String authSessionId = cookie(exchange, AUTH_COOKIE);
                     if (authSessionId != null) {
+                        refreshAppSession(authSessionId, appSession);
                         setAuthCookie(exchange, authSessionId);
                     }
                 } else if (protectedApi(exchange)) {
@@ -1105,7 +1204,41 @@ public class YazioOverviewApp {
 
     private AppSession appSession(HttpExchange exchange) {
         String sessionId = cookie(exchange, AUTH_COOKIE);
-        return sessionId == null ? null : appSessions.get(sessionId);
+        if (sessionId == null) {
+            return null;
+        }
+        loadAppSessions();
+        AppSession session = appSessions.get(sessionId);
+        if (session == null) {
+            return null;
+        }
+        if (session.expiresAt().isBefore(LocalDateTime.now())) {
+            appSessions.remove(sessionId);
+            try {
+                saveAppSessions();
+            } catch (IOException ignored) {
+                // Eine abgelaufene Session darf den Request nicht blockieren.
+            }
+            return null;
+        }
+        User user = users().get(session.userId());
+        if (user == null || !user.active()) {
+            appSessions.remove(sessionId);
+            try {
+                saveAppSessions();
+            } catch (IOException ignored) {
+                // Siehe oben: Session-Aufraeumen ist best effort.
+            }
+            return null;
+        }
+        return session;
+    }
+
+    private void refreshAppSession(String sessionId, AppSession session) throws IOException {
+        LocalDateTime now = LocalDateTime.now();
+        appSessions.put(sessionId, new AppSession(session.userId(), session.createdAt(), now,
+                now.plusSeconds(AUTH_COOKIE_MAX_AGE_SECONDS)));
+        saveAppSessions();
     }
 
     private static String cookie(HttpExchange exchange, String name) {
@@ -1539,13 +1672,17 @@ public class YazioOverviewApp {
         return DATA_DIR.resolve("users.json");
     }
 
+    private static Path sessionsFile() {
+        return DATA_DIR.resolve("sessions.json");
+    }
+
     private User currentUser() {
         String userId = requestUserId.get();
         return userId == null ? null : users().get(userId);
     }
 
     private User adminUser() {
-        return new User(ADMIN_ID, ADMIN_USERNAME, "Admin", "", true);
+        return new User(ADMIN_ID, ADMIN_USERNAME, "Admin", "", true, true, "", "");
     }
 
     private User authenticate(String username, String password) {
@@ -1557,6 +1694,7 @@ public class YazioOverviewApp {
         }
         return users().values().stream()
                 .filter(user -> !user.admin())
+                .filter(User::active)
                 .filter(user -> user.username().equalsIgnoreCase(username.trim()))
                 .filter(user -> password.equals(user.password()))
                 .findFirst()
@@ -1589,6 +1727,19 @@ public class YazioOverviewApp {
         return users;
     }
 
+    private void markUserLogin(String id, LocalDateTime loginAt) throws IOException {
+        if (id == null || ADMIN_ID.equals(id)) {
+            return;
+        }
+        Map<String, User> users = new LinkedHashMap<>(users());
+        User user = users.get(id);
+        if (user == null) {
+            return;
+        }
+        users.put(id, user.withLastLogin(loginAt.toString()));
+        saveUsers(users);
+    }
+
     private void saveUsers(Map<String, User> users) throws IOException {
         Files.createDirectories(DATA_DIR);
         List<Map<String, Object>> items = users.values().stream()
@@ -1614,6 +1765,45 @@ public class YazioOverviewApp {
             next++;
         }
         return String.valueOf(next);
+    }
+
+    private synchronized void loadAppSessions() {
+        if (!appSessions.isEmpty() || !Files.isRegularFile(sessionsFile())) {
+            return;
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> root = (Map<String, Object>) new JsonParser(Files.readString(sessionsFile())).parse();
+            Object rawItems = root.get("sessions");
+            if (rawItems instanceof List<?> items) {
+                for (Object raw : items) {
+                    if (raw instanceof Map<?, ?> map) {
+                        String token = str(map.get("token"));
+                        AppSession session = AppSession.fromMap((Map<?, ?>) map);
+                        if (token != null && session != null && !session.expiresAt().isBefore(LocalDateTime.now())) {
+                            appSessions.put(token, session);
+                        }
+                    }
+                }
+            }
+        } catch (RuntimeException | IOException ignored) {
+            appSessions.clear();
+        }
+    }
+
+    private synchronized void saveAppSessions() throws IOException {
+        Files.createDirectories(DATA_DIR);
+        LocalDateTime now = LocalDateTime.now();
+        List<Map<String, Object>> items = appSessions.entrySet().stream()
+                .filter(entry -> !entry.getValue().expiresAt().isBefore(now))
+                .map(entry -> entry.getValue().persistedMap(entry.getKey()))
+                .toList();
+        Files.writeString(sessionsFile(), JsonWriter.write(Map.of("sessions", items)), StandardCharsets.UTF_8);
+    }
+
+    private void removeSessionsForUser(String userId) throws IOException {
+        appSessions.entrySet().removeIf(entry -> Objects.equals(entry.getValue().userId(), userId));
+        saveAppSessions();
     }
 
     private static int mealOrder(String daytime) {
@@ -1679,6 +1869,14 @@ public class YazioOverviewApp {
     private static LocalDate parseDate(String raw) {
         try {
             return raw == null ? null : LocalDate.parse(raw);
+        } catch (DateTimeParseException ex) {
+            return null;
+        }
+    }
+
+    private static LocalDateTime parseDateTime(String raw) {
+        try {
+            return raw == null || raw.isBlank() ? null : LocalDateTime.parse(raw);
         } catch (DateTimeParseException ex) {
             return null;
         }
@@ -1885,10 +2083,31 @@ public class YazioOverviewApp {
         }
     }
 
-    private record AppSession(String userId, LocalDateTime createdAt) {
+    private record AppSession(String userId, LocalDateTime createdAt, LocalDateTime lastSeen, LocalDateTime expiresAt) {
+        private Map<String, Object> persistedMap(String token) {
+            return Map.of(
+                    "token", token,
+                    "userId", userId,
+                    "createdAt", createdAt.toString(),
+                    "lastSeen", lastSeen.toString(),
+                    "expiresAt", expiresAt.toString()
+            );
+        }
+
+        private static AppSession fromMap(Map<?, ?> map) {
+            String userId = str(map.get("userId"));
+            LocalDateTime createdAt = parseDateTime(str(map.get("createdAt")));
+            LocalDateTime lastSeen = parseDateTime(str(map.get("lastSeen")));
+            LocalDateTime expiresAt = parseDateTime(str(map.get("expiresAt")));
+            if (userId == null || createdAt == null || lastSeen == null || expiresAt == null) {
+                return null;
+            }
+            return new AppSession(userId, createdAt, lastSeen, expiresAt);
+        }
     }
 
-    private record User(String id, String username, String name, String passwordBase64, boolean admin) {
+    private record User(String id, String username, String name, String passwordBase64, boolean admin,
+                        boolean active, String createdAt, String lastLogin) {
         private String password() {
             if (passwordBase64 == null || passwordBase64.isBlank()) {
                 return "";
@@ -1901,22 +2120,43 @@ public class YazioOverviewApp {
         }
 
         private Map<String, Object> publicMap() {
-            return Map.of(
-                    "id", id,
-                    "username", username,
-                    "name", name == null ? "" : name,
-                    "admin", admin
-            );
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", id);
+            map.put("username", username);
+            map.put("name", name == null ? "" : name);
+            map.put("admin", admin);
+            map.put("active", active);
+            map.put("createdAt", createdAt == null ? "" : createdAt);
+            map.put("lastLogin", lastLogin == null ? "" : lastLogin);
+            map.put("dataDir", "data/" + id);
+            return map;
         }
 
         private Map<String, Object> persistedMap() {
-            return Map.of(
-                    "id", id,
-                    "username", username,
-                    "name", name == null ? "" : name,
-                    "passwordBase64", passwordBase64 == null ? "" : passwordBase64,
-                    "admin", admin
-            );
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", id);
+            map.put("username", username);
+            map.put("name", name == null ? "" : name);
+            map.put("passwordBase64", passwordBase64 == null ? "" : passwordBase64);
+            map.put("admin", admin);
+            map.put("active", active);
+            map.put("createdAt", createdAt == null ? "" : createdAt);
+            map.put("lastLogin", lastLogin == null ? "" : lastLogin);
+            return map;
+        }
+
+        private User withPassword(String password) {
+            return new User(id, username, name,
+                    Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)),
+                    admin, active, createdAt, lastLogin);
+        }
+
+        private User withActive(boolean active) {
+            return new User(id, username, name, passwordBase64, admin, active, createdAt, lastLogin);
+        }
+
+        private User withLastLogin(String lastLogin) {
+            return new User(id, username, name, passwordBase64, admin, active, createdAt, lastLogin);
         }
 
         private static User fromMap(Map<?, ?> map) {
@@ -1925,7 +2165,10 @@ public class YazioOverviewApp {
             if (id == null || id.isBlank() || username == null || username.isBlank()) {
                 return null;
             }
-            return new User(id, username, str(map.get("name")), str(map.get("passwordBase64")), bool(map.get("admin")));
+            Object activeValue = map.get("active");
+            boolean active = activeValue == null || bool(activeValue);
+            return new User(id, username, str(map.get("name")), str(map.get("passwordBase64")),
+                    bool(map.get("admin")), active, str(map.get("createdAt")), str(map.get("lastLogin")));
         }
     }
 

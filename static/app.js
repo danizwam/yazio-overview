@@ -88,6 +88,11 @@ const els = {
   currentUser: document.querySelector("#currentUser"),
   logoutButton: document.querySelector("#logoutButton"),
   usersNav: document.querySelector("#usersNav"),
+  passwordPanel: document.querySelector("#passwordPanel"),
+  passwordForm: document.querySelector("#passwordForm"),
+  passwordHint: document.querySelector("#passwordHint"),
+  currentPassword: document.querySelector("#currentPassword"),
+  newPassword: document.querySelector("#newPassword"),
   productCount: document.querySelector("#productCount"),
   dayCount: document.querySelector("#dayCount"),
   dateRange: document.querySelector("#dateRange"),
@@ -144,6 +149,7 @@ const els = {
   downloadBackup: document.querySelector("#downloadBackup"),
   restoreForm: document.querySelector("#restoreForm"),
   userForm: document.querySelector("#userForm"),
+  adminPasswordWarning: document.querySelector("#adminPasswordWarning"),
   newUserName: document.querySelector("#newUserName"),
   newUsername: document.querySelector("#newUsername"),
   newUserPassword: document.querySelector("#newUserPassword"),
@@ -180,7 +186,26 @@ els.loginForm.addEventListener("submit", async (event) => {
 els.logoutButton.addEventListener("click", async () => {
   await fetch("/api/logout", { method: "POST" });
   state.auth = { userManagement: true, loggedIn: false, user: null };
-  showLogin();
+  showLogin("Du wurdest abgemeldet.");
+});
+
+els.passwordForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    await readJson(await fetch("/api/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        currentPassword: els.currentPassword.value,
+        newPassword: els.newPassword.value
+      })
+    }));
+    els.currentPassword.value = "";
+    els.newPassword.value = "";
+    showMessage("Passwort wurde gespeichert.");
+  } catch (error) {
+    showMessage(error.message);
+  }
 });
 
 els.menuToggle.addEventListener("click", () => {
@@ -370,6 +395,7 @@ els.userForm.addEventListener("submit", async (event) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        action: "create",
         name: els.newUserName.value,
         username: els.newUsername.value,
         password: els.newUserPassword.value
@@ -1053,7 +1079,10 @@ async function loadUsers() {
 
 function renderUsers(items) {
   els.userResults.replaceChildren();
-  const table = insightTable(["ID", "Benutzername", "Name", "Rolle"]);
+  if (els.adminPasswordWarning) {
+    els.adminPasswordWarning.classList.toggle("hidden", !state.auth?.adminPasswordDefault);
+  }
+  const table = insightTable(["ID", "Benutzername", "Name", "Rolle", "Status", "Datenordner", "Angelegt", "Letzter Login", "Aktionen"]);
   const body = table.querySelector("tbody");
   for (const user of items) {
     const row = document.createElement("tr");
@@ -1061,11 +1090,59 @@ function renderUsers(items) {
       td(user.id),
       td(user.username),
       td(user.name ?? ""),
-      td(user.admin ? "Admin" : "User")
+      td(user.admin ? "Admin" : "User"),
+      td(user.active ? "Aktiv" : "Deaktiviert"),
+      td(user.dataDir ?? ""),
+      td(formatDateTime(user.createdAt)),
+      td(formatDateTime(user.lastLogin)),
+      userActionsTd(user)
     );
     body.append(row);
   }
   els.userResults.append(table);
+}
+
+function userActionsTd(user) {
+  const cell = document.createElement("td");
+  if (user.admin) {
+    cell.textContent = "-";
+    return cell;
+  }
+  const activeButton = document.createElement("button");
+  activeButton.type = "button";
+  activeButton.className = "secondary";
+  activeButton.textContent = user.active ? "Deaktivieren" : "Aktivieren";
+  activeButton.addEventListener("click", () => updateUserActive(user.id, !user.active));
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "secondary danger";
+  deleteButton.textContent = "Löschen";
+  deleteButton.addEventListener("click", () => deleteUser(user.id, user.username));
+  cell.append(activeButton, deleteButton);
+  return cell;
+}
+
+async function updateUserActive(id, active) {
+  const payload = await readJson(await fetch("/api/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "active", id, active })
+  }));
+  renderUsers(payload.items ?? []);
+  showMessage(active ? "Benutzer aktiviert." : "Benutzer deaktiviert.", "ok");
+}
+
+async function deleteUser(id, username) {
+  if (!window.confirm(`Benutzer ${username} wirklich löschen? Der Datenordner bleibt erhalten.`)) {
+    return;
+  }
+  const payload = await readJson(await fetch("/api/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "delete", id })
+  }));
+  renderUsers(payload.items ?? []);
+  showMessage("Benutzer gelöscht. Der Datenordner wurde nicht entfernt.", "ok");
 }
 
 function insightTable(headers) {
@@ -1355,15 +1432,23 @@ async function showAuthenticatedApp() {
   els.currentUser.textContent = user ? `${user.username} (${user.id})` : "admin (1337)";
   els.logoutButton.classList.toggle("hidden", !state.auth?.userManagement);
   els.usersNav.classList.toggle("hidden", !(state.auth?.userManagement && user?.admin));
+  els.passwordPanel.classList.toggle("hidden", !state.auth?.userManagement);
+  els.passwordForm.classList.toggle("hidden", Boolean(user?.admin));
+  els.passwordHint.textContent = user?.admin
+    ? "Das Admin-Passwort wird in der docker-compose.yaml ueber YAZIO_ADMIN_PASSWORD verwaltet."
+    : "Hier aenderst du das Passwort fuer deinen lokalen Benutzer.";
+  if (els.adminPasswordWarning) {
+    els.adminPasswordWarning.classList.toggle("hidden", !state.auth?.adminPasswordDefault);
+  }
   await loadStatus();
   await openDateFromUrl();
 }
 
-function showLogin() {
+function showLogin(message = "") {
   els.appShell.classList.add("hidden");
   els.loginScreen.classList.remove("hidden");
   els.loginPassword.value = "";
-  els.loginMessage.textContent = "";
+  els.loginMessage.textContent = message;
 }
 
 async function readJson(response) {
@@ -1378,12 +1463,29 @@ async function readJson(response) {
 }
 
 function formatDate(value) {
+  if (!value) return "";
   return new Intl.DateTimeFormat("de-DE", {
     weekday: "short",
     day: "2-digit",
     month: "2-digit",
     year: "numeric"
   }).format(new Date(`${value}T12:00:00`));
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const normalized = String(value).includes("T") ? value : String(value).replace(" ", "T");
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
 function shortDate(value) {
