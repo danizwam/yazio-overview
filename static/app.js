@@ -469,7 +469,7 @@ async function loadStatus() {
   els.fromDate.max = todayIso();
   els.toDate.max = todayIso();
   if (status.lastDate && !els.singleDate.value) els.singleDate.value = status.lastDate;
-  if (status.firstDate && !els.fromDate.value) els.fromDate.value = status.firstDate;
+  if (!els.fromDate.value) els.fromDate.value = defaultRangeStart(status);
   if (status.lastDate && !els.toDate.value) els.toDate.value = status.lastDate;
   if (!els.syncFromDate.value) els.syncFromDate.value = status.recommendedSyncFrom ?? todayIso();
   if (!els.syncToDate.value) els.syncToDate.value = status.recommendedSyncTo ?? todayIso();
@@ -1356,6 +1356,23 @@ function todayIso() {
   const now = new Date();
   const offset = now.getTimezoneOffset();
   return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
+function daysAgoIso(days) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return toIsoDate(date);
+}
+
+function defaultRangeStart(status) {
+  let start = daysAgoIso(7);
+  if (status.firstDate && start < status.firstDate) {
+    start = status.firstDate;
+  }
+  if (status.lastDate && start > status.lastDate) {
+    start = status.lastDate;
+  }
+  return start;
 }
 
 function parseIsoDate(value) {
