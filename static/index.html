@@ -406,6 +406,18 @@
             <h3>9. Kaloriengraph</h3>
             <p>Nach einer Bereichsauswertung kannst du den Kalorienverlauf als Graph einblenden. Ein Klick auf einen Punkt Ã¶ffnet den passenden Tag in einem neuen Tab.</p>
           </article>
+          <article>
+            <h3>10. Benutzerverwaltung</h3>
+            <p>Wenn die Userverwaltung aktiv ist, meldest du dich zuerst an. Der Admin legt Benutzer an, aktiviert oder deaktiviert sie und kann sie l&ouml;schen. Beim L&ouml;schen wird auch der Datenordner des Benutzers entfernt.</p>
+          </article>
+          <article>
+            <h3>11. Demo und Konfiguration</h3>
+            <p>Mit dem festen Login Demo/Demo kannst du Mock-Daten ausprobieren, ohne echte Yazio-Daten zu nutzen. Wird der Demo-Modus explizit konfiguriert, startet das Tool ohne Userverwaltung direkt im Demo-Betrieb. F&uuml;r Java- und EXE-Starts kann eine yazio-overview.properties neben der Anwendung liegen.</p>
+          </article>
+          <article>
+            <h3>12. Tests</h3>
+            <p>Die grundlegenden Funktionen sind mit JUnit-Tests abgedeckt. Der echte Yazio-Import wird dabei bewusst nicht ausgef&uuml;hrt.</p>
+          </article>
         </div>
       </section>
     </section>
@@ -414,6 +426,27 @@
       <section class="panel changelog-panel">
         <h2>Changelog</h2>
         <ol class="changelog-list">
+          <li>
+            <time datetime="2026-06-09">09.06.2026</time>
+            <div>
+              <h3>JUnit-Tests erg&auml;nzt</h3>
+              <p>Grundlegende Funktionen wie JSON-Verarbeitung, Tagesauswertung, Listen, Demo-Daten und die gegessen/getrunken-Erkennung werden jetzt per JUnit getestet. Der echte Yazio-Import bleibt au&szlig;en vor.</p>
+            </div>
+          </li>
+          <li>
+            <time datetime="2026-06-09">09.06.2026</time>
+            <div>
+              <h3>Demo-Login und Konfiguration erweitert</h3>
+              <p>Der feste Login Demo/Demo nutzt Mock-Daten ohne echte Yazio-Schnittstelle. Der explizite Demo-Modus startet ohne Userverwaltung. Java- und EXE-Starts k&ouml;nnen Werte aus einer yazio-overview.properties lesen.</p>
+            </div>
+          </li>
+          <li>
+            <time datetime="2026-06-09">09.06.2026</time>
+            <div>
+              <h3>Userverwaltung abgerundet</h3>
+              <p>Benutzer k&ouml;nnen aktiviert, deaktiviert und gel&ouml;scht werden. Beim L&ouml;schen wird auch der jeweilige Datenordner entfernt. Sessions bleiben lokal gespeichert und Passw&ouml;rter normaler Benutzer k&ouml;nnen im Profil ge&auml;ndert werden.</p>
+            </div>
+          </li>
           <li>
             <time datetime="2026-06-02">02.06.2026</time>
             <div>
