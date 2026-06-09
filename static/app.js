@@ -1379,13 +1379,13 @@ function initializeRangeDates(status) {
     window.setTimeout(() => reapplyInitialRangeDates(status), 500);
     return;
   }
-  if (!els.fromDate.value) els.fromDate.value = defaultRangeStart(status);
-  if (!els.toDate.value) els.toDate.value = status.lastDate ?? todayIso();
+  if (!els.fromDate.value) els.fromDate.value = defaultRangeFrom(status);
+  if (!els.toDate.value) els.toDate.value = defaultRangeTo(status);
 }
 
 function applyDefaultRangeDates(status) {
-  els.fromDate.value = defaultRangeStart(status);
-  els.toDate.value = status.lastDate ?? todayIso();
+  els.fromDate.value = defaultRangeFrom(status);
+  els.toDate.value = defaultRangeTo(status);
 }
 
 function reapplyInitialRangeDates(status) {
@@ -1406,7 +1406,10 @@ function daysAgoIso(days) {
   return toIsoDate(date);
 }
 
-function defaultRangeStart(status) {
+function defaultRangeFrom(status) {
+  if (status.defaultRangeFrom) {
+    return status.defaultRangeFrom;
+  }
   let start = daysAgoIso(7);
   if (status.firstDate && start < status.firstDate) {
     start = status.firstDate;
@@ -1415,6 +1418,10 @@ function defaultRangeStart(status) {
     start = status.lastDate;
   }
   return start;
+}
+
+function defaultRangeTo(status) {
+  return status.defaultRangeTo ?? status.lastDate ?? todayIso();
 }
 
 function parseIsoDate(value) {

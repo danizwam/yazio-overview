@@ -178,6 +178,9 @@ public class YazioOverviewApp {
         body.put("dayCount", snapshot.days().size());
         body.put("firstDate", snapshot.firstDate().map(LocalDate::toString).orElse(null));
         body.put("lastDate", snapshot.lastDate().map(LocalDate::toString).orElse(null));
+        RangeDefault rangeDefault = defaultRange(snapshot);
+        body.put("defaultRangeFrom", rangeDefault.from().map(LocalDate::toString).orElse(null));
+        body.put("defaultRangeTo", rangeDefault.to().map(LocalDate::toString).orElse(null));
         SyncRecommendation recommendation = syncRecommendation();
         body.put("recommendedSyncFrom", recommendation.from().toString());
         body.put("recommendedSyncTo", recommendation.to().toString());
@@ -1128,6 +1131,24 @@ public class YazioOverviewApp {
                 .map(day -> day.isBefore(regularStart) ? day : regularStart)
                 .orElse(regularStart);
         return new SyncRecommendation(recommendedFrom, today, oldestIncomplete);
+    }
+
+    private RangeDefault defaultRange(DataStore snapshot) {
+        Optional<LocalDate> maybeLastDate = snapshot.lastDate();
+        if (maybeLastDate.isEmpty()) {
+            return new RangeDefault(Optional.empty(), Optional.empty());
+        }
+        LocalDate today = LocalDate.now();
+        LocalDate start = today.minusDays(7);
+        Optional<LocalDate> maybeFirstDate = snapshot.firstDate();
+        if (maybeFirstDate.isPresent() && start.isBefore(maybeFirstDate.get())) {
+            start = maybeFirstDate.get();
+        }
+        LocalDate end = maybeLastDate.get();
+        if (start.isAfter(end)) {
+            start = end;
+        }
+        return new RangeDefault(Optional.of(start), Optional.of(end));
     }
 
     private Optional<LocalDate> oldestIncompleteImportDay() {
@@ -2140,6 +2161,9 @@ public class YazioOverviewApp {
     }
 
     private record SyncRecommendation(LocalDate from, LocalDate to, Optional<LocalDate> oldestIncompleteDay) {
+    }
+
+    private record RangeDefault(Optional<LocalDate> from, Optional<LocalDate> to) {
     }
 
     private record ConsolidatedImport(Map<String, Object> days, Map<String, Object> products) {
