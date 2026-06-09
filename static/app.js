@@ -5,7 +5,8 @@ const state = {
   rangeDays: [],
   chartVisible: false,
   chartMetric: "energy",
-  auth: null
+  auth: null,
+  rangeInitialized: false
 };
 
 const insightStorageKey = "yazioOverview.insightSelection";
@@ -469,8 +470,7 @@ async function loadStatus() {
   els.fromDate.max = todayIso();
   els.toDate.max = todayIso();
   if (status.lastDate && !els.singleDate.value) els.singleDate.value = status.lastDate;
-  if (!els.fromDate.value) els.fromDate.value = defaultRangeStart(status);
-  if (status.lastDate && !els.toDate.value) els.toDate.value = status.lastDate;
+  initializeRangeDates(status);
   if (!els.syncFromDate.value) els.syncFromDate.value = status.recommendedSyncFrom ?? todayIso();
   if (!els.syncToDate.value) els.syncToDate.value = status.recommendedSyncTo ?? todayIso();
   updateRangeConstraints();
@@ -1356,6 +1356,17 @@ function todayIso() {
   const now = new Date();
   const offset = now.getTimezoneOffset();
   return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
+function initializeRangeDates(status) {
+  if (!state.rangeInitialized) {
+    els.fromDate.value = defaultRangeStart(status);
+    els.toDate.value = status.lastDate ?? todayIso();
+    state.rangeInitialized = true;
+    return;
+  }
+  if (!els.fromDate.value) els.fromDate.value = defaultRangeStart(status);
+  if (!els.toDate.value) els.toDate.value = status.lastDate ?? todayIso();
 }
 
 function daysAgoIso(days) {
