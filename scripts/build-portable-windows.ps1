@@ -53,6 +53,7 @@ jpackage `
     --win-console
 
 Copy-Item -Path (Join-Path $root "static") -Destination (Join-Path $appImage "static") -Recurse
+Copy-Item -Path (Join-Path $root "yazio-overview.properties") -Destination (Join-Path $appImage "yazio-overview.properties")
 New-Item -ItemType Directory -Force (Join-Path $appImage "data") | Out-Null
 
 @"
@@ -68,6 +69,10 @@ Danach oeffnet sich der Browser automatisch unter:
 Daten:
   Alle lokalen Daten liegen im Ordner data neben der EXE.
   Der Ordner kann mit dem kompletten Programmordner kopiert werden.
+
+Konfiguration:
+  Die Datei yazio-overview.properties liegt neben der EXE.
+  Dort koennen Port, Demo-Modus, Userverwaltung und Admin-Passwort angepasst werden.
 
 Hinweis:
   Das Programm laeuft lokal auf diesem Rechner. Fenster schliessen beendet den Server.

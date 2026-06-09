@@ -6,6 +6,8 @@ services:
       - "8080:8080"
     environment:
       YAZIO_DEMO_MODE: "false"
+      YAZIO_USER_MANAGEMENT: "false"
+      YAZIO_ADMIN_PASSWORD: "admin"
     volumes:
       - ./data:/app/data
     restart: unless-stopped
