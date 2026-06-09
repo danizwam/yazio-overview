@@ -43,9 +43,29 @@ public final class Domain {
         }
     }
 
-    public record AppSettings(String name, String birthDate, String username, String passwordBase64) {
+    public record AppSettings(String name, String birthDate, String username, String passwordBase64,
+                              int defaultRangeDays) {
+        public static final int DEFAULT_RANGE_DAYS = 7;
+        public static final int MIN_RANGE_DAYS = 1;
+        public static final int MAX_RANGE_DAYS = 365;
+
+        public AppSettings {
+            defaultRangeDays = clampDefaultRangeDays(defaultRangeDays);
+        }
+
+        public AppSettings(String name, String birthDate, String username, String passwordBase64) {
+            this(name, birthDate, username, passwordBase64, DEFAULT_RANGE_DAYS);
+        }
+
         public static AppSettings empty() {
-            return new AppSettings("", "", "", "");
+            return new AppSettings("", "", "", "", DEFAULT_RANGE_DAYS);
+        }
+
+        public static int clampDefaultRangeDays(int value) {
+            if (value <= 0) {
+                return DEFAULT_RANGE_DAYS;
+            }
+            return Math.max(MIN_RANGE_DAYS, Math.min(MAX_RANGE_DAYS, value));
         }
 
         public String password() {
@@ -64,7 +84,8 @@ public final class Domain {
                     "name", name == null ? "" : name,
                     "birthDate", birthDate == null ? "" : birthDate,
                     "username", username == null ? "" : username,
-                    "hasPassword", passwordBase64 != null && !passwordBase64.isBlank()
+                    "hasPassword", passwordBase64 != null && !passwordBase64.isBlank(),
+                    "defaultRangeDays", defaultRangeDays
             );
         }
 
@@ -73,7 +94,8 @@ public final class Domain {
                     "name", name == null ? "" : name,
                     "birthDate", birthDate == null ? "" : birthDate,
                     "username", username == null ? "" : username,
-                    "passwordBase64", passwordBase64 == null ? "" : passwordBase64
+                    "passwordBase64", passwordBase64 == null ? "" : passwordBase64,
+                    "defaultRangeDays", defaultRangeDays
             );
         }
     }

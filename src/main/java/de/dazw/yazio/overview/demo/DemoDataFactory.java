@@ -72,7 +72,8 @@ public final class DemoDataFactory {
         }
         AppSettings settings = currentSettings == null ? DEFAULT_SETTINGS : currentSettings;
         if (settings.name() == null || settings.name().isBlank()) {
-            settings = new AppSettings(DEFAULT_SETTINGS.name(), settings.birthDate(), settings.username(), settings.passwordBase64());
+            settings = new AppSettings(DEFAULT_SETTINGS.name(), settings.birthDate(), settings.username(),
+                    settings.passwordBase64(), settings.defaultRangeDays());
         }
         return new DataStore(products, days, settings, Map.of(), Map.of());
     }
