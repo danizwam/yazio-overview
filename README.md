@@ -195,7 +195,7 @@ Der manuelle Upload im Bereich manueller Import von JSON bleibt für bestehende 
 
 Zusätzliche lokale Daten:
 
-- `data/settings.json`: Profil, Geburtsdatum und Yazio-Zugangsdaten
+- `data/settings.json`: Profil, Geburtsdatum, Yazio-Zugangsdaten und Standard-Datumsbereich
 - `data/notes.json`: Besonderheiten pro Tag
 
 ## Importverhalten
@@ -214,6 +214,7 @@ Damit muss nicht jedes Mal der komplette historische Zeitraum neu geladen werden
 - Inkrementelle Import-Snapshots mit konsolidierter Arbeitsdatei
 - Einzelner Tag mit Mahlzeiten, Bestandteilen und Makros
 - Datumsbereich mit getrennt kopierbaren Tages- und Mahlzeitentexten
+- Konfigurierbarer Standard-Datumsbereich für die Auswertung
 - Tagesnotizen für "Besonderheiten an diesem Tag", getrennt von den Yazio-Daten
 - Profilinformationen für Name und Geburtsdatum in Excel/PDF
 - Listenansicht mit Produktsuche, Top-100-Lebensmitteln und Tagesranking

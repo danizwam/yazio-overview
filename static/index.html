@@ -270,6 +270,10 @@
             <input id="birthDate" type="date">
           </label>
           <label>
+            <span>Standard-Datumsbereich <button class="info-tip" type="button" title="So viele Tage zur&uuml;ck startet die Bereichsauswertung beim ersten Laden.">?</button></span>
+            <input id="defaultRangeDays" type="number" min="1" max="365" step="1" inputmode="numeric">
+          </label>
+          <label>
             <span>Yazio Benutzername <button class="info-tip" type="button" title="Wird nur lokal gespeichert und für die Yazio-Synchronisierung verwendet.">?</button></span>
             <input id="yazioUsername" type="email" autocomplete="username">
           </label>
@@ -380,7 +384,7 @@
           </article>
           <article>
             <h3>3. Auswerten</h3>
-            <p>Auf der Startseite wählst du einen Tag oder Zeitraum. Die Mahlzeiten werden mit Bestandteilen und Makros angezeigt und lassen sich kopieren.</p>
+            <p>Auf der Startseite wählst du einen Tag oder Zeitraum. Die Mahlzeiten werden mit Bestandteilen und Makros angezeigt und lassen sich kopieren. Im Profil kannst du einstellen, wie viele Tage der Datumsbereich beim Start zurückgehen soll.</p>
           </article>
           <article>
             <h3>4. Listen nutzen</h3>
@@ -426,6 +430,13 @@
       <section class="panel changelog-panel">
         <h2>Changelog</h2>
         <ol class="changelog-list">
+          <li>
+            <time datetime="2026-06-09">09.06.2026</time>
+            <div>
+              <h3>Standard-Datumsbereich konfigurierbar</h3>
+              <p>Im Profil kann jetzt eingestellt werden, wie viele Tage die Bereichsauswertung beim ersten Laden zurückgehen soll. Alte Einstellungen ohne diesen Wert nutzen automatisch sieben Tage.</p>
+            </div>
+          </li>
           <li>
             <time datetime="2026-06-09">09.06.2026</time>
             <div>

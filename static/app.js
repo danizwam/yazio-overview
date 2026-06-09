@@ -103,6 +103,7 @@ const els = {
   settingsForm: document.querySelector("#settingsForm"),
   profileName: document.querySelector("#profileName"),
   birthDate: document.querySelector("#birthDate"),
+  defaultRangeDays: document.querySelector("#defaultRangeDays"),
   yazioUsername: document.querySelector("#yazioUsername"),
   yazioPassword: document.querySelector("#yazioPassword"),
   syncFromDate: document.querySelector("#syncFromDate"),
@@ -322,12 +323,15 @@ els.settingsForm.addEventListener("submit", async (event) => {
       body: JSON.stringify({
         name: els.profileName.value,
         birthDate: els.birthDate.value,
+        defaultRangeDays: Number(els.defaultRangeDays.value || 7),
         username: els.yazioUsername.value,
         password: els.yazioPassword.value
       })
     });
     await readJson(response);
     els.yazioPassword.value = state.status?.demoMode ? (state.status.demoPassword ?? "passwordMock123") : "";
+    state.rangeInitialized = false;
+    state.rangeDefaultPending = false;
     await loadStatus();
     showMessage("Einstellungen gespeichert.", "ok");
   } catch (error) {
@@ -493,6 +497,7 @@ async function loadStatus() {
 function fillSettings(settings) {
   els.profileName.value = settings.name ?? "";
   els.birthDate.value = settings.birthDate ?? "";
+  els.defaultRangeDays.value = settings.defaultRangeDays ?? 7;
   els.yazioUsername.value = settings.username ?? "";
   if (state.status?.demoMode) {
     els.yazioPassword.value = state.status.demoPassword ?? "passwordMock123";
@@ -1410,7 +1415,8 @@ function defaultRangeFrom(status) {
   if (status.defaultRangeFrom) {
     return status.defaultRangeFrom;
   }
-  let start = daysAgoIso(7);
+  const days = Number(status.settings?.defaultRangeDays ?? 7);
+  let start = daysAgoIso(Number.isFinite(days) && days > 0 ? days : 7);
   if (status.firstDate && start < status.firstDate) {
     start = status.firstDate;
   }

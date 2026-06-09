@@ -408,7 +408,8 @@ public class YazioOverviewApp {
                     str(body.get("name")),
                     str(body.get("birthDate")),
                     str(body.get("username")),
-                    Base64.getEncoder().encodeToString(DEMO_PASSWORD.getBytes(StandardCharsets.UTF_8))
+                    Base64.getEncoder().encodeToString(DEMO_PASSWORD.getBytes(StandardCharsets.UTF_8)),
+                    intValue(body.get("defaultRangeDays"), existing.defaultRangeDays())
             );
             updateStore(new DataStore(snapshot().products(), snapshot().days(), updated,
                     snapshot().notes(), snapshot().itemClassifications()));
@@ -419,7 +420,8 @@ public class YazioOverviewApp {
                 str(body.get("name")),
                 str(body.get("birthDate")),
                 str(body.get("username")),
-                password == null || password.isBlank() ? existing.passwordBase64() : Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8))
+                password == null || password.isBlank() ? existing.passwordBase64() : Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)),
+                intValue(body.get("defaultRangeDays"), existing.defaultRangeDays())
         );
         Files.createDirectories(dataDir());
         Files.writeString(settingsFile(), JsonWriter.write(updated.toPersistedMap()), StandardCharsets.UTF_8);
@@ -1139,7 +1141,7 @@ public class YazioOverviewApp {
             return new RangeDefault(Optional.empty(), Optional.empty());
         }
         LocalDate today = LocalDate.now();
-        LocalDate start = today.minusDays(7);
+        LocalDate start = today.minusDays(snapshot.settings().defaultRangeDays());
         Optional<LocalDate> maybeFirstDate = snapshot.firstDate();
         if (maybeFirstDate.isPresent() && start.isBefore(maybeFirstDate.get())) {
             start = maybeFirstDate.get();
@@ -1541,7 +1543,8 @@ public class YazioOverviewApp {
                 str(map.get("name")),
                 str(map.get("birthDate")),
                 str(map.get("username")),
-                str(map.get("passwordBase64"))
+                str(map.get("passwordBase64")),
+                intValue(map.get("defaultRangeDays"), AppSettings.DEFAULT_RANGE_DAYS)
         );
     }
 
@@ -1913,6 +1916,20 @@ public class YazioOverviewApp {
             return Double.parseDouble(String.valueOf(value));
         } catch (NumberFormatException ex) {
             return 0;
+        }
+    }
+
+    private static int intValue(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return AppSettings.clampDefaultRangeDays(number.intValue());
+        }
+        if (value == null) {
+            return AppSettings.clampDefaultRangeDays(fallback);
+        }
+        try {
+            return AppSettings.clampDefaultRangeDays(Integer.parseInt(String.valueOf(value)));
+        } catch (NumberFormatException ex) {
+            return AppSettings.clampDefaultRangeDays(fallback);
         }
     }
 
