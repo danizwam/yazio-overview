@@ -51,7 +51,7 @@ Loeschst du einen Benutzer in der Benutzerverwaltung, wird auch sein Datenordner
 
 ### Konfiguration ohne Docker
 
-Beim Start per Java oder als portable EXE kannst du die wichtigsten Werte in eine Datei `yazio-overview.properties` neben die gestartete App legen. Eine Vorlage liegt in `yazio-overview.properties.example`.
+Beim Start per Java oder als portable EXE werden die wichtigsten Werte aus `yazio-overview.properties` neben der gestarteten App gelesen. Eine Vorlage mit Kommentaren liegt zusaetzlich in `yazio-overview.properties.example`.
 
 ```properties
 server.port=8080
@@ -101,6 +101,8 @@ Wenn du die fertige portable Version nutzt, brauchst du kein Java und keine Powe
 4. Der Browser oeffnet sich automatisch unter <http://localhost:8080>
 
 Deine lokalen Daten liegen neben der EXE im Ordner `data`. Du kannst den kompletten entpackten Ordner kopieren oder auf einen anderen Rechner verschieben.
+
+Die portable EXE enthaelt eine Standard-Konfigurationsdatei `yazio-overview.properties`. Standardmaessig ist die Userverwaltung deaktiviert, der Demo-Modus aus und das Admin-Passwort steht auf `admin`.
 
 ## Portable Windows-Version selbst bauen
 
