@@ -6,7 +6,8 @@ const state = {
   chartVisible: false,
   chartMetric: "energy",
   auth: null,
-  rangeInitialized: false
+  rangeInitialized: false,
+  rangeDefaultPending: false
 };
 
 const insightStorageKey = "yazioOverview.insightSelection";
@@ -299,8 +300,18 @@ document.querySelectorAll(".today-button").forEach((button) => {
 
 els.previousDay.addEventListener("click", () => shiftSingleDay(-1));
 els.nextDay.addEventListener("click", () => shiftSingleDay(1));
-els.fromDate.addEventListener("change", updateRangeConstraints);
-els.toDate.addEventListener("change", updateRangeConstraints);
+els.fromDate.addEventListener("focus", cancelPendingRangeDefault);
+els.toDate.addEventListener("focus", cancelPendingRangeDefault);
+els.fromDate.addEventListener("input", cancelPendingRangeDefault);
+els.toDate.addEventListener("input", cancelPendingRangeDefault);
+els.fromDate.addEventListener("change", () => {
+  cancelPendingRangeDefault();
+  updateRangeConstraints();
+});
+els.toDate.addEventListener("change", () => {
+  cancelPendingRangeDefault();
+  updateRangeConstraints();
+});
 
 els.settingsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -1360,13 +1371,33 @@ function todayIso() {
 
 function initializeRangeDates(status) {
   if (!state.rangeInitialized) {
-    els.fromDate.value = defaultRangeStart(status);
-    els.toDate.value = status.lastDate ?? todayIso();
+    applyDefaultRangeDates(status);
     state.rangeInitialized = true;
+    state.rangeDefaultPending = true;
+    window.requestAnimationFrame(() => reapplyInitialRangeDates(status));
+    window.setTimeout(() => reapplyInitialRangeDates(status), 150);
+    window.setTimeout(() => reapplyInitialRangeDates(status), 500);
     return;
   }
   if (!els.fromDate.value) els.fromDate.value = defaultRangeStart(status);
   if (!els.toDate.value) els.toDate.value = status.lastDate ?? todayIso();
+}
+
+function applyDefaultRangeDates(status) {
+  els.fromDate.value = defaultRangeStart(status);
+  els.toDate.value = status.lastDate ?? todayIso();
+}
+
+function reapplyInitialRangeDates(status) {
+  if (!state.rangeDefaultPending) {
+    return;
+  }
+  applyDefaultRangeDates(status);
+  updateRangeConstraints();
+}
+
+function cancelPendingRangeDefault() {
+  state.rangeDefaultPending = false;
 }
 
 function daysAgoIso(days) {

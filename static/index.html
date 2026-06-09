@@ -104,15 +104,15 @@
             <button type="button" data-export="pdf" data-scope="single">Tag als PDF</button>
           </div>
 
-          <form id="rangeForm" class="query-form hidden">
+          <form id="rangeForm" class="query-form hidden" autocomplete="off">
             <label>
               <span>Von <button class="info-tip" type="button" title="Start des Zeitraums für Anzeige und Export.">?</button></span>
-              <input id="fromDate" type="date" required>
+              <input id="fromDate" type="date" required autocomplete="off">
             </label>
             <button type="button" class="today-button" data-target="fromDate">Heute</button>
             <label>
               <span>Bis <button class="info-tip" type="button" title="Ende des Zeitraums für Anzeige und Export.">?</button></span>
-              <input id="toDate" type="date" required>
+              <input id="toDate" type="date" required autocomplete="off">
             </label>
             <button type="button" class="today-button" data-target="toDate">Heute</button>
             <button type="submit">Bereich anzeigen</button>
@@ -426,6 +426,13 @@
       <section class="panel changelog-panel">
         <h2>Changelog</h2>
         <ol class="changelog-list">
+          <li>
+            <time datetime="2026-06-09">09.06.2026</time>
+            <div>
+              <h3>Datumsbereich-Vorbelegung robuster gemacht</h3>
+              <p>Die Bereichsauswertung setzt das Startdatum beim ersten Laden erneut nach, damit alte Browserwerte nicht mehr das &auml;lteste Datum eintragen.</p>
+            </div>
+          </li>
           <li>
             <time datetime="2026-06-09">09.06.2026</time>
             <div>
