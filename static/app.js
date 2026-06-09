@@ -4,7 +4,8 @@ const state = {
   selectedProduct: null,
   rangeDays: [],
   chartVisible: false,
-  chartMetric: "energy"
+  chartMetric: "energy",
+  auth: null
 };
 
 const insightStorageKey = "yazioOverview.insightSelection";
@@ -73,11 +74,25 @@ const insightSorts = {
 };
 
 const els = {
+  loginScreen: document.querySelector("#loginScreen"),
+  loginForm: document.querySelector("#loginForm"),
+  loginUsername: document.querySelector("#loginUsername"),
+  loginPassword: document.querySelector("#loginPassword"),
+  loginMessage: document.querySelector("#loginMessage"),
+  appShell: document.querySelector("#appShell"),
   menuToggle: document.querySelector("#menuToggle"),
   mainNav: document.querySelector("#mainNav"),
   currentPageLabel: document.querySelector("#currentPageLabel"),
   statusText: document.querySelector("#statusText"),
   statusDot: document.querySelector(".status-dot"),
+  currentUser: document.querySelector("#currentUser"),
+  logoutButton: document.querySelector("#logoutButton"),
+  usersNav: document.querySelector("#usersNav"),
+  passwordPanel: document.querySelector("#passwordPanel"),
+  passwordForm: document.querySelector("#passwordForm"),
+  passwordHint: document.querySelector("#passwordHint"),
+  currentPassword: document.querySelector("#currentPassword"),
+  newPassword: document.querySelector("#newPassword"),
   productCount: document.querySelector("#productCount"),
   dayCount: document.querySelector("#dayCount"),
   dateRange: document.querySelector("#dateRange"),
@@ -133,6 +148,12 @@ const els = {
   dataQualityResults: document.querySelector("#dataQualityResults"),
   downloadBackup: document.querySelector("#downloadBackup"),
   restoreForm: document.querySelector("#restoreForm"),
+  userForm: document.querySelector("#userForm"),
+  adminPasswordWarning: document.querySelector("#adminPasswordWarning"),
+  newUserName: document.querySelector("#newUserName"),
+  newUsername: document.querySelector("#newUsername"),
+  newUserPassword: document.querySelector("#newUserPassword"),
+  userResults: document.querySelector("#userResults"),
   results: document.querySelector("#results"),
   emptyState: document.querySelector("#emptyState"),
   message: document.querySelector("#message"),
@@ -142,6 +163,49 @@ const els = {
 
 document.querySelectorAll(".nav-tab").forEach((tab) => {
   tab.addEventListener("click", () => showPage(tab.dataset.page));
+});
+
+els.loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = await readJson(await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: els.loginUsername.value,
+        password: els.loginPassword.value
+      })
+    }));
+    state.auth = { userManagement: true, loggedIn: true, user: payload.user };
+    await showAuthenticatedApp();
+  } catch (error) {
+    els.loginMessage.textContent = error.message;
+  }
+});
+
+els.logoutButton.addEventListener("click", async () => {
+  await fetch("/api/logout", { method: "POST" });
+  state.auth = { userManagement: true, loggedIn: false, user: null };
+  showLogin("Du wurdest abgemeldet.");
+});
+
+els.passwordForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    await readJson(await fetch("/api/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        currentPassword: els.currentPassword.value,
+        newPassword: els.newPassword.value
+      })
+    }));
+    els.currentPassword.value = "";
+    els.newPassword.value = "";
+    showMessage("Passwort wurde gespeichert.");
+  } catch (error) {
+    showMessage(error.message);
+  }
 });
 
 els.menuToggle.addEventListener("click", () => {
@@ -319,6 +383,27 @@ els.restoreForm.addEventListener("submit", async (event) => {
     const payload = await readJson(await fetch("/api/restore", { method: "POST", body: form }));
     await loadStatus();
     showMessage(`Backup wiederhergestellt: ${payload.restored.length} Dateien.`, "ok");
+  } catch (error) {
+    showMessage(error.message);
+  }
+});
+
+els.userForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = await readJson(await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "create",
+        name: els.newUserName.value,
+        username: els.newUsername.value,
+        password: els.newUserPassword.value
+      })
+    }));
+    els.userForm.reset();
+    renderUsers(payload.items ?? []);
+    showMessage("Benutzer angelegt.", "ok");
   } catch (error) {
     showMessage(error.message);
   }
@@ -987,6 +1072,79 @@ async function loadDataQuality() {
   els.dataQualityResults.append(table);
 }
 
+async function loadUsers() {
+  const payload = await readJson(await fetch("/api/users"));
+  renderUsers(payload.items ?? []);
+}
+
+function renderUsers(items) {
+  els.userResults.replaceChildren();
+  if (els.adminPasswordWarning) {
+    els.adminPasswordWarning.classList.toggle("hidden", !state.auth?.adminPasswordDefault);
+  }
+  const table = insightTable(["ID", "Benutzername", "Name", "Rolle", "Status", "Datenordner", "Angelegt", "Letzter Login", "Aktionen"]);
+  const body = table.querySelector("tbody");
+  for (const user of items) {
+    const row = document.createElement("tr");
+    row.append(
+      td(user.id),
+      td(user.username),
+      td(user.name ?? ""),
+      td(user.demo ? "Demo" : (user.admin ? "Admin" : "User")),
+      td(user.active ? "Aktiv" : "Deaktiviert"),
+      td(user.dataDir ?? ""),
+      td(formatDateTime(user.createdAt)),
+      td(formatDateTime(user.lastLogin)),
+      userActionsTd(user)
+    );
+    body.append(row);
+  }
+  els.userResults.append(table);
+}
+
+function userActionsTd(user) {
+  const cell = document.createElement("td");
+  if (user.admin || user.demo) {
+    cell.textContent = "-";
+    return cell;
+  }
+  const activeButton = document.createElement("button");
+  activeButton.type = "button";
+  activeButton.className = "secondary";
+  activeButton.textContent = user.active ? "Deaktivieren" : "Aktivieren";
+  activeButton.addEventListener("click", () => updateUserActive(user.id, !user.active));
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "secondary danger";
+  deleteButton.textContent = "Löschen";
+  deleteButton.addEventListener("click", () => deleteUser(user.id, user.username));
+  cell.append(activeButton, deleteButton);
+  return cell;
+}
+
+async function updateUserActive(id, active) {
+  const payload = await readJson(await fetch("/api/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "active", id, active })
+  }));
+  renderUsers(payload.items ?? []);
+  showMessage(active ? "Benutzer aktiviert." : "Benutzer deaktiviert.", "ok");
+}
+
+async function deleteUser(id, username) {
+  if (!window.confirm(`Benutzer ${username} wirklich löschen? Der Datenordner wird ebenfalls entfernt.`)) {
+    return;
+  }
+  const payload = await readJson(await fetch("/api/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "delete", id })
+  }));
+  renderUsers(payload.items ?? []);
+  showMessage("Benutzer und Datenordner wurden gelöscht.", "ok");
+}
+
 function insightTable(headers) {
   const table = document.createElement("table");
   table.className = "insight-table";
@@ -1246,6 +1404,9 @@ function showPage(pageName) {
   }
   closeMenu();
   clearMessage();
+  if (pageName === "users") {
+    loadUsers().catch((error) => showMessage(error.message));
+  }
 }
 
 function closeMenu() {
@@ -1254,21 +1415,79 @@ function closeMenu() {
   els.menuToggle.setAttribute("aria-label", "Menü öffnen");
 }
 
+async function initAuth() {
+  const auth = await readJson(await fetch("/api/auth/status"));
+  state.auth = auth;
+  if (auth.userManagement && !auth.loggedIn) {
+    showLogin();
+    return;
+  }
+  await showAuthenticatedApp();
+}
+
+async function showAuthenticatedApp() {
+  els.loginScreen.classList.add("hidden");
+  els.appShell.classList.remove("hidden");
+  const user = state.auth?.user;
+  els.currentUser.textContent = user ? `${user.username} (${user.id})` : "admin (1337)";
+  els.logoutButton.classList.toggle("hidden", !state.auth?.userManagement);
+  els.usersNav.classList.toggle("hidden", !(state.auth?.userManagement && user?.admin));
+  els.passwordPanel.classList.toggle("hidden", !state.auth?.userManagement);
+  els.passwordForm.classList.toggle("hidden", Boolean(user?.admin || user?.demo));
+  els.passwordHint.textContent = user?.admin
+    ? "Das Admin-Passwort wird ueber YAZIO_ADMIN_PASSWORD oder yazio.admin.password verwaltet."
+    : user?.demo
+    ? "Der Demo-Benutzer hat das feste Passwort Demo und speichert keine echten Daten."
+    : "Hier aenderst du das Passwort fuer deinen lokalen Benutzer.";
+  if (els.adminPasswordWarning) {
+    els.adminPasswordWarning.classList.toggle("hidden", !state.auth?.adminPasswordDefault);
+  }
+  await loadStatus();
+  await openDateFromUrl();
+}
+
+function showLogin(message = "") {
+  els.appShell.classList.add("hidden");
+  els.loginScreen.classList.remove("hidden");
+  els.loginPassword.value = "";
+  els.loginMessage.textContent = message;
+}
+
 async function readJson(response) {
   const payload = await response.json();
   if (!response.ok) {
+    if (response.status === 401 && state.auth?.userManagement) {
+      showLogin();
+    }
     throw new Error(payload.error ?? `HTTP ${response.status}`);
   }
   return payload;
 }
 
 function formatDate(value) {
+  if (!value) return "";
   return new Intl.DateTimeFormat("de-DE", {
     weekday: "short",
     day: "2-digit",
     month: "2-digit",
     year: "numeric"
   }).format(new Date(`${value}T12:00:00`));
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const normalized = String(value).includes("T") ? value : String(value).replace(" ", "T");
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
 function shortDate(value) {
@@ -1321,6 +1540,7 @@ function fmt(value) {
 }
 
 restoreInsightSelection();
-loadStatus()
-  .then(openDateFromUrl)
-  .catch((error) => showMessage(error.message));
+initAuth().catch((error) => {
+  showLogin();
+  els.loginMessage.textContent = error.message;
+});

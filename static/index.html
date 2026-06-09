@@ -7,7 +7,24 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <main class="app-shell">
+  <section id="loginScreen" class="login-screen hidden">
+    <form id="loginForm" class="login-card">
+      <p class="eyebrow">Login</p>
+      <h1>Yazio Overview</h1>
+      <label>
+        <span>Benutzername</span>
+        <input id="loginUsername" type="text" autocomplete="username" required>
+      </label>
+      <label>
+        <span>Passwort</span>
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <button type="submit">Einloggen</button>
+      <p id="loginMessage" class="login-message"></p>
+    </form>
+  </section>
+
+  <main id="appShell" class="app-shell hidden">
     <section class="topbar">
       <div>
         <p class="eyebrow">Kalorientracker Export</p>
@@ -16,7 +33,9 @@
       <div class="status-card" id="statusCard">
         <span class="status-dot"></span>
         <span id="statusText">Lade Status...</span>
+        <span id="currentUser" class="app-version"></span>
         <span id="appVersion" class="app-version"></span>
+        <button id="logoutButton" class="status-logout hidden" type="button">Logout</button>
       </div>
     </section>
 
@@ -34,6 +53,7 @@
       <button class="nav-tab" type="button" data-page="insights">Listen</button>
       <hr>
       <button class="nav-tab" type="button" data-page="profile">Profil</button>
+      <button id="usersNav" class="nav-tab hidden" type="button" data-page="users">Benutzer</button>
       <button class="nav-tab" type="button" data-page="sync">Yazio Import</button>
       <button class="nav-tab" type="button" data-page="admin">manueller Import von JSON</button>
       <hr>
@@ -260,6 +280,22 @@
           <button type="submit">Einstellungen speichern</button>
         </form>
       </section>
+
+      <section id="passwordPanel" class="panel hidden">
+        <h2>Passwort &auml;ndern</h2>
+        <p id="passwordHint" class="muted-text"></p>
+        <form id="passwordForm" class="settings-form">
+          <label>
+            <span>Aktuelles Passwort</span>
+            <input id="currentPassword" type="password" autocomplete="current-password">
+          </label>
+          <label>
+            <span>Neues Passwort</span>
+            <input id="newPassword" type="password" autocomplete="new-password">
+          </label>
+          <button type="submit">Passwort speichern</button>
+        </form>
+      </section>
     </section>
 
     <section id="page-admin" class="page-section">
@@ -307,6 +343,29 @@
       </section>
     </section>
 
+    <section id="page-users" class="page-section">
+      <section class="panel">
+        <h2>Benutzerverwaltung</h2>
+        <p id="adminPasswordWarning" class="message warning hidden">Das Admin-Passwort ist noch der Standardwert <strong>admin</strong>. Bitte setze in der docker-compose.yaml <code>YAZIO_ADMIN_PASSWORD</code> oder in der Property-Datei <code>yazio.admin.password</code>.</p>
+        <form id="userForm" class="settings-form">
+          <label>
+            <span>Name</span>
+            <input id="newUserName" type="text" autocomplete="name">
+          </label>
+          <label>
+            <span>Benutzername</span>
+            <input id="newUsername" type="text" autocomplete="off" required>
+          </label>
+          <label>
+            <span>Passwort</span>
+            <input id="newUserPassword" type="password" autocomplete="new-password" required>
+          </label>
+          <button type="submit">Benutzer anlegen</button>
+        </form>
+        <div id="userResults" class="insight-results"></div>
+      </section>
+    </section>
+
     <section id="page-help" class="page-section">
       <section class="panel help-panel">
         <h2>Leitfaden</h2>
@@ -347,6 +406,18 @@
             <h3>9. Kaloriengraph</h3>
             <p>Nach einer Bereichsauswertung kannst du den Kalorienverlauf als Graph einblenden. Ein Klick auf einen Punkt Ã¶ffnet den passenden Tag in einem neuen Tab.</p>
           </article>
+          <article>
+            <h3>10. Benutzerverwaltung</h3>
+            <p>Wenn die Userverwaltung aktiv ist, meldest du dich zuerst an. Der Admin legt Benutzer an, aktiviert oder deaktiviert sie und kann sie l&ouml;schen. Beim L&ouml;schen wird auch der Datenordner des Benutzers entfernt.</p>
+          </article>
+          <article>
+            <h3>11. Demo und Konfiguration</h3>
+            <p>Mit dem festen Login Demo/Demo kannst du Mock-Daten ausprobieren, ohne echte Yazio-Daten zu nutzen. Wird der Demo-Modus explizit konfiguriert, startet das Tool ohne Userverwaltung direkt im Demo-Betrieb. F&uuml;r Java- und EXE-Starts kann eine yazio-overview.properties neben der Anwendung liegen.</p>
+          </article>
+          <article>
+            <h3>12. Tests</h3>
+            <p>Die grundlegenden Funktionen sind mit JUnit-Tests abgedeckt. Der echte Yazio-Import wird dabei bewusst nicht ausgef&uuml;hrt.</p>
+          </article>
         </div>
       </section>
     </section>
@@ -355,6 +426,27 @@
       <section class="panel changelog-panel">
         <h2>Changelog</h2>
         <ol class="changelog-list">
+          <li>
+            <time datetime="2026-06-09">09.06.2026</time>
+            <div>
+              <h3>JUnit-Tests erg&auml;nzt</h3>
+              <p>Grundlegende Funktionen wie JSON-Verarbeitung, Tagesauswertung, Listen, Demo-Daten und die gegessen/getrunken-Erkennung werden jetzt per JUnit getestet. Der echte Yazio-Import bleibt au&szlig;en vor.</p>
+            </div>
+          </li>
+          <li>
+            <time datetime="2026-06-09">09.06.2026</time>
+            <div>
+              <h3>Demo-Login und Konfiguration erweitert</h3>
+              <p>Der feste Login Demo/Demo nutzt Mock-Daten ohne echte Yazio-Schnittstelle. Der explizite Demo-Modus startet ohne Userverwaltung. Java- und EXE-Starts k&ouml;nnen Werte aus einer yazio-overview.properties lesen.</p>
+            </div>
+          </li>
+          <li>
+            <time datetime="2026-06-09">09.06.2026</time>
+            <div>
+              <h3>Userverwaltung abgerundet</h3>
+              <p>Benutzer k&ouml;nnen aktiviert, deaktiviert und gel&ouml;scht werden. Beim L&ouml;schen wird auch der jeweilige Datenordner entfernt. Sessions bleiben lokal gespeichert und Passw&ouml;rter normaler Benutzer k&ouml;nnen im Profil ge&auml;ndert werden.</p>
+            </div>
+          </li>
           <li>
             <time datetime="2026-06-02">02.06.2026</time>
             <div>
