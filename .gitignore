@@ -3,4 +3,5 @@ data/
 build/
 dist/
 .codex-remote-attachments/
+docs/chat-context.json
 *.class
