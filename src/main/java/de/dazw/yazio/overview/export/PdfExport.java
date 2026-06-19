@@ -90,8 +90,9 @@ public final class PdfExport {
         page.cell(left + mealWidth, y, eatenWidth + drinkWidth, totalHeight, report.total().inline(), 9, false, true);
 
         page.boldAt("Sport:", 40, y - 42, 12);
+        page.textBlock("F1", report.sportNote() == null ? "" : report.sportNote(), 95, y - 42, 10, 78, 2);
         page.boldAt("Besonderheiten an diesem Tag:", 40, y - 84, 12);
-        page.textAt("F1", report.note() == null ? "" : report.note(), 245, y - 84, 10);
+        page.textBlock("F1", report.note() == null ? "" : report.note(), 245, y - 84, 10, 52, 2);
         pages.add(page.finish());
         return pages;
     }
@@ -134,6 +135,13 @@ public final class PdfExport {
         private void textAt(String font, String text, int x, int y, int size) {
             content.append("BT /").append(font).append(' ').append(size).append(" Tf ")
                     .append(x).append(' ').append(y).append(" Td (").append(pdf(text)).append(") Tj ET\n");
+        }
+
+        private void textBlock(String font, String text, int x, int y, int size, int maxChars, int maxLines) {
+            List<String> lines = wrap(text, maxChars);
+            for (int i = 0; i < Math.min(lines.size(), maxLines); i++) {
+                textAt(font, lines.get(i), x, y - (i * (size + 3)), size);
+            }
         }
 
         private static List<String> wrap(String text, int max) {

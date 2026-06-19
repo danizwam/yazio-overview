@@ -102,6 +102,7 @@ Zusaetzliche lokale Daten:
 
 - `data/settings.json`: Profil, Geburtsdatum, Yazio-Zugangsdaten und Standard-Datumsbereich
 - `data/notes.json`: Besonderheiten pro Tag
+- `data/sport-notes.json`: Sport-Freitext pro Tag
 
 ## Importverhalten
 
@@ -120,7 +121,7 @@ Damit muss nicht jedes Mal der komplette historische Zeitraum neu geladen werden
 - Einzelner Tag mit Mahlzeiten, Bestandteilen und Makros
 - Datumsbereich mit getrennt kopierbaren Tages- und Mahlzeitentexten
 - Konfigurierbarer Standard-Datumsbereich fuer die Auswertung
-- Tagesnotizen fuer "Besonderheiten an diesem Tag", getrennt von den Yazio-Daten
+- Tagesfreitexte fuer Sport und "Besonderheiten an diesem Tag", getrennt von den Yazio-Daten
 - Profilinformationen fuer Name und Geburtsdatum in Excel/PDF
 - Listenansicht mit Produktsuche, Top-100-Lebensmitteln und Tagesranking
 - Verdichtungen nach Mahlzeiten, Wochentagen und Monaten

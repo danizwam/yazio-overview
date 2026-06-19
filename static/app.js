@@ -551,8 +551,17 @@ function renderDays(days) {
     node.querySelector(".macro-strip").append(...macroPills(day.total));
     node.querySelector(".copy-day").addEventListener("click", () => copy(day.copyText));
     const note = node.querySelector(".day-note");
+    const sportNote = node.querySelector(".day-sport-note");
+    sportNote.value = day.sportNote ?? "";
+    sportNote.addEventListener("change", () => saveNote(day.date, {
+      note: note.value,
+      sportNote: sportNote.value
+    }));
     note.value = day.note ?? "";
-    note.addEventListener("change", () => saveNote(day.date, note.value));
+    note.addEventListener("change", () => saveNote(day.date, {
+      note: note.value,
+      sportNote: sportNote.value
+    }));
     const meals = node.querySelector(".meals");
     for (const meal of day.meals) {
       meals.append(renderMeal(meal));
@@ -1211,15 +1220,15 @@ async function openDateFromUrl() {
   await showSingleDay(date);
 }
 
-async function saveNote(date, note) {
+async function saveNote(date, payload) {
   try {
     const response = await fetch(`/api/note?date=${encodeURIComponent(date)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ note })
+      body: JSON.stringify(payload)
     });
     await readJson(response);
-    showMessage("Besonderheit gespeichert.", "ok");
+    showMessage("Tagesfreitext gespeichert.", "ok");
   } catch (error) {
     showMessage(error.message);
   }

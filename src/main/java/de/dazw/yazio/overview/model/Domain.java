@@ -20,18 +20,25 @@ public final class Domain {
     }
 
     public record DataStore(Map<String, Product> products, Map<LocalDate, Day> days, AppSettings settings,
-                            Map<LocalDate, String> notes, Map<String, String> itemClassifications, String error) {
+                            Map<LocalDate, String> notes, Map<LocalDate, String> sportNotes,
+                            Map<String, String> itemClassifications, String error) {
         public static DataStore empty() {
-            return new DataStore(Map.of(), Map.of(), AppSettings.empty(), Map.of(), Map.of(), null);
+            return new DataStore(Map.of(), Map.of(), AppSettings.empty(), Map.of(), Map.of(), Map.of(), null);
         }
 
         public DataStore(Map<String, Product> products, Map<LocalDate, Day> days, AppSettings settings,
                          Map<LocalDate, String> notes, Map<String, String> itemClassifications) {
-            this(products, days, settings, notes, itemClassifications, null);
+            this(products, days, settings, notes, Map.of(), itemClassifications, null);
+        }
+
+        public DataStore(Map<String, Product> products, Map<LocalDate, Day> days, AppSettings settings,
+                         Map<LocalDate, String> notes, Map<LocalDate, String> sportNotes,
+                         Map<String, String> itemClassifications) {
+            this(products, days, settings, notes, sportNotes, itemClassifications, null);
         }
 
         public DataStore withError(String error) {
-            return new DataStore(products, days, settings, notes, itemClassifications, error);
+            return new DataStore(products, days, settings, notes, sportNotes, itemClassifications, error);
         }
 
         public Optional<LocalDate> firstDate() {
@@ -131,7 +138,12 @@ public final class Domain {
     }
 
     public record DayReport(LocalDate date, Daily daily, List<MealReport> meals, Macro total, AppSettings settings,
-                            String note) {
+                            String note, String sportNote) {
+        public DayReport(LocalDate date, Daily daily, List<MealReport> meals, Macro total, AppSettings settings,
+                         String note) {
+            this(date, daily, meals, total, settings, note, "");
+        }
+
         public Map<String, Object> toMap() {
             List<Map<String, Object>> mealMaps = meals.stream().map(MealReport::toMap).toList();
             return Map.of(
@@ -140,6 +152,7 @@ public final class Domain {
                     "total", total.toMap(),
                     "meals", mealMaps,
                     "note", note == null ? "" : note,
+                    "sportNote", sportNote == null ? "" : sportNote,
                     "copyText", copyText()
             );
         }

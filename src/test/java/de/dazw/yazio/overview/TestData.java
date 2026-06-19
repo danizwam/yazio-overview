@@ -40,12 +40,13 @@ public final class TestData {
                         true
                 ))
         );
-        return new DataStore(products, Map.of(DAY, day), AppSettings.empty(), Map.of(DAY, "Testnotiz"), Map.of());
+        return new DataStore(products, Map.of(DAY, day), AppSettings.empty(),
+                Map.of(DAY, "Testnotiz"), Map.of(DAY, "45 Minuten Krafttraining"), Map.of());
     }
 
     public static DataStore dataStoreWithProductOverride(String productId, String classification) {
         DataStore base = dataStore();
-        return new DataStore(base.products(), base.days(), base.settings(), base.notes(),
+        return new DataStore(base.products(), base.days(), base.settings(), base.notes(), base.sportNotes(),
                 Map.of("product:" + productId, classification));
     }
 

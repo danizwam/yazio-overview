@@ -115,8 +115,10 @@ public final class XlsxExport {
         }
         rows.add(new Row(22, List.of(new Cell("Gesamt:", 6), new Cell(report.total().inline(), 6), new Cell("", 6))));
         rows.add(new Row(18, List.of(new Cell(""), new Cell(""), new Cell(""))));
-        rows.add(new Row(24, List.of(new Cell("Sport:", 2), new Cell(""), new Cell(""))));
-        rows.add(new Row(24, List.of(new Cell("Besonderheiten an diesem Tag:", 2), new Cell(report.note() == null ? "" : report.note(), 2), new Cell(""))));
+        String sportNote = report.sportNote() == null ? "" : report.sportNote();
+        String dayNote = report.note() == null ? "" : report.note();
+        rows.add(new Row(textRowHeight(sportNote), List.of(new Cell("Sport:", 2), new Cell(sportNote, 2), new Cell(""))));
+        rows.add(new Row(textRowHeight(dayNote), List.of(new Cell("Besonderheiten an diesem Tag:", 2), new Cell(dayNote, 2), new Cell(""))));
 
         StringBuilder xml = new StringBuilder("""
                 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -183,6 +185,10 @@ public final class XlsxExport {
                 Math.max(visualLines(eatenText, ITEM_COLUMN_CHARS), visualLines(drinkText, ITEM_COLUMN_CHARS))
         );
         return Math.max(MIN_MEAL_ROW_HEIGHT, lines * LINE_HEIGHT + ROW_PADDING);
+    }
+
+    private static int textRowHeight(String text) {
+        return Math.max(24, visualLines(text, ITEM_COLUMN_CHARS) * LINE_HEIGHT + ROW_PADDING);
     }
 
     private static int visualLines(String text, int charsPerLine) {

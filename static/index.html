@@ -392,15 +392,15 @@
           </article>
           <article>
             <h3>5. Exportieren</h3>
-            <p>Excel und PDF übernehmen Name, Geburtsdatum und die Besonderheiten des Tages. Bei Zeiträumen bekommt jeder Tag im Excel eine eigene Tabelle.</p>
+            <p>Excel und PDF übernehmen Name, Geburtsdatum, Sport und die Besonderheiten des Tages. Bei Zeiträumen bekommt jeder Tag im Excel eine eigene Tabelle.</p>
           </article>
           <article>
             <h3>6. Manueller Import</h3>
             <p>Der manuelle Import von JSON ist für vorhandene products.json und days.json gedacht. Für den normalen Betrieb ist der direkte Yazio Import besser geeignet.</p>
           </article>
           <article>
-            <h3>7. Besonderheiten</h3>
-            <p>Notizen pro Tag bleiben lokal erhalten und überleben neue Yazio-Imports, weil sie getrennt von den Yazio-Daten gespeichert werden.</p>
+            <h3>7. Tagesfreitexte</h3>
+            <p>Sport und Besonderheiten pro Tag bleiben lokal erhalten und überleben neue Yazio-Imports, weil sie getrennt von den Yazio-Daten gespeichert werden.</p>
           </article>
           <article>
             <h3>8. Essen oder Getr&auml;nk</h3>
@@ -430,6 +430,13 @@
       <section class="panel changelog-panel">
         <h2>Changelog</h2>
         <ol class="changelog-list">
+          <li>
+            <time datetime="2026-06-19">19.06.2026</time>
+            <div>
+              <h3>Sport-Freitext pro Tag ergänzt</h3>
+              <p>In der Tagesauswertung kann jetzt ein Sport-Freitext gespeichert werden. Excel- und PDF-Export drucken diesen Text in der Sport-Zeile.</p>
+            </div>
+          </li>
           <li>
             <time datetime="2026-06-09">09.06.2026</time>
             <div>
@@ -594,6 +601,10 @@
         <button type="button" class="copy-day">Tag kopieren</button>
       </header>
       <div class="macro-strip"></div>
+      <label class="note-field">
+        <span>Sport <button class="info-tip" type="button" title="Dieser Sport-Freitext wird lokal gespeichert und erscheint in Excel und PDF.">?</button></span>
+        <input class="day-sport-note" type="text">
+      </label>
       <label class="note-field">
         <span>Besonderheiten an diesem Tag <button class="info-tip" type="button" title="Diese Notiz wird lokal gespeichert und erscheint in Excel und PDF.">?</button></span>
         <input class="day-note" type="text">

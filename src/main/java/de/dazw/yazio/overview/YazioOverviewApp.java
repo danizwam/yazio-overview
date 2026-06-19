@@ -155,10 +155,13 @@ public class YazioOverviewApp {
                 Map<LocalDate, String> notes = Files.exists(notesFile())
                         ? parseNotes(Files.readString(notesFile()))
                         : Map.of();
+                Map<LocalDate, String> sportNotes = Files.exists(sportNotesFile())
+                        ? parseNotes(Files.readString(sportNotesFile()))
+                        : Map.of();
                 Map<String, String> itemClassifications = Files.exists(itemClassificationsFile())
                         ? parseItemClassifications(Files.readString(itemClassificationsFile()))
                         : Map.of();
-                store = new DataStore(products, days, settings, notes, itemClassifications);
+                store = new DataStore(products, days, settings, notes, sportNotes, itemClassifications);
             } catch (RuntimeException | IOException ex) {
                 store = DataStore.empty().withError(ex.getMessage());
             }
@@ -412,7 +415,7 @@ public class YazioOverviewApp {
                     intValue(body.get("defaultRangeDays"), existing.defaultRangeDays())
             );
             updateStore(new DataStore(snapshot().products(), snapshot().days(), updated,
-                    snapshot().notes(), snapshot().itemClassifications()));
+                    snapshot().notes(), snapshot().sportNotes(), snapshot().itemClassifications()));
             send(exchange, 200, snapshot().settings().publicMap());
             return;
         }
@@ -437,7 +440,7 @@ public class YazioOverviewApp {
             return;
         }
         if (exchange.getRequestMethod().equals("GET")) {
-            send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
+            send(exchange, 200, noteResponse(date));
             return;
         }
         if (!exchange.getRequestMethod().equals("POST")) {
@@ -447,22 +450,43 @@ public class YazioOverviewApp {
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) new JsonParser(new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8)).parse();
         Map<LocalDate, String> notes = new TreeMap<>(snapshot().notes());
-        String text = str(body.get("note"));
-        if (text == null || text.isBlank()) {
-            notes.remove(date);
-        } else {
-            notes.put(date, text.trim());
+        Map<LocalDate, String> sportNotes = new TreeMap<>(snapshot().sportNotes());
+        if (body.containsKey("note")) {
+            String text = str(body.get("note"));
+            if (text == null || text.isBlank()) {
+                notes.remove(date);
+            } else {
+                notes.put(date, text.trim());
+            }
+        }
+        if (body.containsKey("sportNote")) {
+            String sportText = str(body.get("sportNote"));
+            if (sportText == null || sportText.isBlank()) {
+                sportNotes.remove(date);
+            } else {
+                sportNotes.put(date, sportText.trim());
+            }
         }
         if (demoRequest()) {
             updateStore(new DataStore(snapshot().products(), snapshot().days(), snapshot().settings(),
-                    notes, snapshot().itemClassifications()));
-            send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
+                    notes, sportNotes, snapshot().itemClassifications()));
+            send(exchange, 200, noteResponse(date));
             return;
         }
         Files.createDirectories(dataDir());
         Files.writeString(notesFile(), JsonWriter.write(notesToMap(notes)), StandardCharsets.UTF_8);
+        Files.writeString(sportNotesFile(), JsonWriter.write(notesToMap(sportNotes)), StandardCharsets.UTF_8);
         reload();
-        send(exchange, 200, Map.of("date", date.toString(), "note", snapshot().notes().getOrDefault(date, "")));
+        send(exchange, 200, noteResponse(date));
+    }
+
+    private Map<String, Object> noteResponse(LocalDate date) {
+        DataStore current = snapshot();
+        return Map.of(
+                "date", date.toString(),
+                "note", current.notes().getOrDefault(date, ""),
+                "sportNote", current.sportNotes().getOrDefault(date, "")
+        );
     }
 
     private void itemClassification(HttpExchange exchange) throws IOException {
@@ -520,7 +544,7 @@ public class YazioOverviewApp {
 
         if (demoRequest()) {
             updateStore(new DataStore(snapshot().products(), snapshot().days(), snapshot().settings(),
-                    snapshot().notes(), overrides));
+                    snapshot().notes(), snapshot().sportNotes(), overrides));
             send(exchange, 200, Map.of(
                     "itemId", itemId,
                     "classification", requested,
@@ -563,7 +587,7 @@ public class YazioOverviewApp {
         overrides.remove(key);
         if (demoRequest()) {
             updateStore(new DataStore(snapshot().products(), snapshot().days(), snapshot().settings(),
-                    snapshot().notes(), overrides));
+                    snapshot().notes(), snapshot().sportNotes(), overrides));
             send(exchange, 200, Map.of("items", productClassificationRules()));
             return;
         }
@@ -682,7 +706,7 @@ public class YazioOverviewApp {
             state.log("Erzeuge Mock-Produkte und Mock-Tage fuer " + from + " bis " + to + ".");
             DataStore generated = DemoDataFactory.generate(from, to, snapshot().settings());
             updateStore(new DataStore(generated.products(), generated.days(), generated.settings(),
-                    snapshot().notes(), snapshot().itemClassifications()));
+                    snapshot().notes(), snapshot().sportNotes(), snapshot().itemClassifications()));
             state.log("Mock-Import abgeschlossen. Credentials wurden ignoriert.");
             state.success(generated.days().size(), generated.products().size());
         } catch (RuntimeException ex) {
@@ -1115,6 +1139,7 @@ public class YazioOverviewApp {
         }
         if (normalized.equals("products.json") || normalized.equals("days.json")
                 || normalized.equals("settings.json") || normalized.equals("notes.json")
+                || normalized.equals("sport-notes.json")
                 || normalized.equals("item-classifications.json")) {
             return true;
         }
@@ -1624,6 +1649,7 @@ public class YazioOverviewApp {
             Path daysFile = directory.resolve("days.json");
             Path settingsFile = directory.resolve("settings.json");
             Path notesFile = directory.resolve("notes.json");
+            Path sportNotesFile = directory.resolve("sport-notes.json");
             Path classificationsFile = directory.resolve("item-classifications.json");
             Map<String, Product> products = Files.exists(productsFile)
                     ? parseProducts(Files.readString(productsFile))
@@ -1637,10 +1663,13 @@ public class YazioOverviewApp {
             Map<LocalDate, String> notes = Files.exists(notesFile)
                     ? parseNotes(Files.readString(notesFile))
                     : Map.of();
+            Map<LocalDate, String> sportNotes = Files.exists(sportNotesFile)
+                    ? parseNotes(Files.readString(sportNotesFile))
+                    : Map.of();
             Map<String, String> itemClassifications = Files.exists(classificationsFile)
                     ? parseItemClassifications(Files.readString(classificationsFile))
                     : Map.of();
-            return new DataStore(products, days, settings, notes, itemClassifications);
+            return new DataStore(products, days, settings, notes, sportNotes, itemClassifications);
         } catch (RuntimeException | IOException ex) {
             return DataStore.empty().withError(ex.getMessage());
         }
@@ -1700,6 +1729,10 @@ public class YazioOverviewApp {
 
     private Path notesFile() {
         return dataDir().resolve("notes.json");
+    }
+
+    private Path sportNotesFile() {
+        return dataDir().resolve("sport-notes.json");
     }
 
     private Path itemClassificationsFile() {
@@ -2015,8 +2048,8 @@ public class YazioOverviewApp {
     }
 
     private static String exportName(List<DayReport> reports, String extension) {
-        DayReport firstReport = reports.getFirst();
-        DayReport lastReport = reports.getLast();
+        DayReport firstReport = reports.get(0);
+        DayReport lastReport = reports.get(reports.size() - 1);
         String first = firstReport.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
         String last = lastReport.date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
         String prefix = fileNamePart(firstReport.settings().name());

@@ -24,27 +24,27 @@ class InsightServiceTest {
         List<Map<String, Object>> result = insightService.products(reports, "*sKyR*", "amount", 100);
 
         assertEquals(1, result.size());
-        assertEquals("Skyr Natur", result.getFirst().get("name"));
-        assertEquals("200 g", result.getFirst().get("amountText"));
+        assertEquals("Skyr Natur", result.get(0).get("name"));
+        assertEquals("200 g", result.get(0).get("amountText"));
     }
 
     @Test
     void productsCanBeSortedByAmount() {
         List<Map<String, Object>> result = insightService.products(List.of(report()), "", "amount", 100);
 
-        assertEquals("Protein Milkshake", result.getFirst().get("name"));
+        assertEquals("Protein Milkshake", result.get(0).get("name"));
     }
 
     @Test
     void productDaysAggregatesSelectedProduct() {
         List<Map<String, Object>> products = insightService.products(List.of(report()), "*shake*", "amount", 100);
-        String key = String.valueOf(products.getFirst().get("key"));
+        String key = String.valueOf(products.get(0).get("key"));
 
         List<Map<String, Object>> days = insightService.productDays(List.of(report()), key, "amount");
 
         assertEquals(1, days.size());
-        assertEquals(TestData.day().toString(), days.getFirst().get("date"));
-        assertEquals("330 ml", days.getFirst().get("amountText"));
+        assertEquals(TestData.day().toString(), days.get(0).get("date"));
+        assertEquals("330 ml", days.get(0).get("amountText"));
     }
 
     @Test
@@ -63,13 +63,13 @@ class InsightServiceTest {
 
         List<Map<String, Object>> result = insightService.days(List.of(second, first), "energy", "desc");
 
-        assertEquals(TestData.day().toString(), result.getFirst().get("date"));
+        assertEquals(TestData.day().toString(), result.get(0).get("date"));
     }
 
     @Test
     void productKeysAreStableBase64Values() {
         List<Map<String, Object>> products = insightService.products(List.of(report()), "*skyr*", "amount", 100);
-        String key = String.valueOf(products.getFirst().get("key"));
+        String key = String.valueOf(products.get(0).get("key"));
 
         String decoded = new String(Base64.getUrlDecoder().decode(key), StandardCharsets.UTF_8);
 

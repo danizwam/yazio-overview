@@ -20,15 +20,16 @@ class ReportServiceTest {
 
         assertNotNull(report);
         assertEquals("Testnotiz", report.note());
+        assertEquals("45 Minuten Krafttraining", report.sportNote());
         assertEquals(3, report.meals().size());
-        assertEquals("breakfast", report.meals().getFirst().key());
+        assertEquals("breakfast", report.meals().get(0).key());
 
         Map<String, MealReport> meals = report.meals().stream()
                 .collect(Collectors.toMap(MealReport::key, meal -> meal));
         assertEquals(128.0, meals.get("breakfast").total().energy, 0.0001);
         assertEquals(22.0, meals.get("breakfast").total().protein, 0.0001);
-        assertEquals("Haehnchen mit Reis", meals.get("lunch").items().getFirst().name());
-        assertTrue(meals.get("lunch").items().getFirst().aiGenerated());
+        assertEquals("Haehnchen mit Reis", meals.get("lunch").items().get(0).name());
+        assertTrue(meals.get("lunch").items().get(0).aiGenerated());
         assertEquals(1263.2, report.total().energy, 0.0001);
     }
 
