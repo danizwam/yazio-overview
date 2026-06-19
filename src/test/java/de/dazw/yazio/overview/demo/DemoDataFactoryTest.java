@@ -33,12 +33,12 @@ class DemoDataFactoryTest {
 
     @Test
     void generateKeepsExistingPersonalSettings() {
-        AppSettings settings = new AppSettings("Daniel", "1979-01-28", "demo@example.test", "");
+        AppSettings settings = new AppSettings("Max Mustermann", "1979-01-28", "demo@example.test", "");
 
         DataStore store = DemoDataFactory.generate(LocalDate.of(2026, 6, 1),
                 LocalDate.of(2026, 6, 1), settings);
 
-        assertEquals("Daniel", store.settings().name());
+        assertEquals("Max Mustermann", store.settings().name());
         assertEquals("1979-01-28", store.settings().birthDate());
     }
 

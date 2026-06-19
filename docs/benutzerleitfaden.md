@@ -337,8 +337,8 @@ Wenn im Profil ein Name gespeichert ist, wird er im Dateinamen verwendet.
 Beispiele:
 
 ```text
-Daniel_Zwamborn_Yazio-Export_19.06.2026.xlsx
-Daniel_Zwamborn_Yazio-Export_05.06.2026-19.06.2026.pdf
+Max_Mustermann_Yazio-Export_19.06.2026.xlsx
+Max_Mustermann_Yazio-Export_05.06.2026-19.06.2026.pdf
 ```
 
 Bei einem einzelnen Tag wird das Datum nur einmal ausgegeben.
