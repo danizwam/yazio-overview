@@ -90,6 +90,7 @@ const els = {
   currentUser: document.querySelector("#currentUser"),
   logoutButton: document.querySelector("#logoutButton"),
   usersNav: document.querySelector("#usersNav"),
+  developerNav: document.querySelector("#developerNav"),
   passwordPanel: document.querySelector("#passwordPanel"),
   passwordForm: document.querySelector("#passwordForm"),
   passwordHint: document.querySelector("#passwordHint"),
@@ -474,6 +475,7 @@ async function loadStatus() {
   const version = status.version?.number && status.version.number !== "dev" ? `v${status.version.number}` : "dev";
   els.appVersion.textContent = version;
   fillSettings(status.settings ?? {});
+  updateDeveloperNavigation();
   if (status.firstDate) {
     els.singleDate.min = status.firstDate;
     els.fromDate.min = status.firstDate;
@@ -1471,6 +1473,9 @@ function clearMessage() {
 }
 
 function showPage(pageName) {
+  if (pageName === "admin" && !state.status?.developerMode) {
+    pageName = "analysis";
+  }
   let label = "";
   document.querySelectorAll(".nav-tab").forEach((item) => {
     const active = item.dataset.page === pageName;
@@ -1487,6 +1492,17 @@ function showPage(pageName) {
   clearMessage();
   if (pageName === "users") {
     loadUsers().catch((error) => showMessage(error.message));
+  }
+}
+
+function updateDeveloperNavigation() {
+  if (!els.developerNav) {
+    return;
+  }
+  const developerMode = Boolean(state.status?.developerMode);
+  els.developerNav.classList.toggle("hidden", !developerMode);
+  if (!developerMode && document.querySelector("#page-admin")?.classList.contains("active")) {
+    showPage("analysis");
   }
 }
 
@@ -1524,6 +1540,7 @@ async function showAuthenticatedApp() {
     els.adminPasswordWarning.classList.toggle("hidden", !state.auth?.adminPasswordDefault);
   }
   await loadStatus();
+  updateDeveloperNavigation();
   await openDateFromUrl();
 }
 

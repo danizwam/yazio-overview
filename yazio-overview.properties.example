@@ -11,3 +11,6 @@ yazio.demo.mode=false
 # Normale Userverwaltung. Wird ignoriert, wenn yazio.demo.mode=true ist.
 yazio.user.management=false
 yazio.admin.password=admin
+
+# Developer-Modus: zeigt den manuellen JSON-Import fuer Tests/Reparaturen.
+developer=0

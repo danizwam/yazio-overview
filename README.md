@@ -96,9 +96,7 @@ data/days.json
 data/products.json
 ```
 
-Diese beiden Dateien sind also keine reinen Upload-Dateien mehr, sondern die aktuell zusammengefuehrte Sicht auf alle bekannten Imports. Bei ueberschneidenden Tagen gilt: vollstaendige Tage schlagen unvollstaendige Tage, bei gleicher Qualitaet gewinnt der spaetere Import. So kann ein heute nur halb importierter Tag spaeter automatisch durch einen vollstaendigen Import ersetzt werden.
-
-Der manuelle Upload im Bereich manueller Import von JSON bleibt fuer bestehende Exporte, Altimporte oder Reparaturen erhalten. Er ueberschreibt die konsolidierten Arbeitsdateien `data/days.json` und `data/products.json`, ersetzt aber nicht die Import-Snapshots unter `data/imports`.
+Diese beiden Dateien sind die aktuell zusammengefuehrte Sicht auf alle bekannten Imports. Bei ueberschneidenden Tagen gilt: vollstaendige Tage schlagen unvollstaendige Tage, bei gleicher Qualitaet gewinnt der spaetere Import. So kann ein heute nur halb importierter Tag spaeter automatisch durch einen vollstaendigen Import ersetzt werden.
 
 Zusaetzliche lokale Daten:
 
@@ -118,7 +116,6 @@ Damit muss nicht jedes Mal der komplette historische Zeitraum neu geladen werden
 ## Funktionen
 
 - Direkter Yazio-Sync per Benutzername, Passwort und Datumsbereich
-- Manueller Import von `products.json` und `days.json`
 - Inkrementelle Import-Snapshots mit konsolidierter Arbeitsdatei
 - Einzelner Tag mit Mahlzeiten, Bestandteilen und Makros
 - Datumsbereich mit getrennt kopierbaren Tages- und Mahlzeitentexten

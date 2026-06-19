@@ -2,229 +2,320 @@
 
 Stand: 19.06.2026
 
-Dieser Leitfaden beschreibt die Bedienung von Yazio Overview aus Anwendersicht. Die Screenshots zeigen Demo-Daten; bei echten Yazio-Daten sehen Namen, Mengen und Zeitraeume natuerlich anders aus.
+Dieser Leitfaden beschreibt die Bedienung von Yazio Overview. Er erklaert die sichtbaren Bereiche der Oberflaeche, die wichtigsten Automatismen und die Grenzen einzelner Funktionen. Technische Start-, Build- und Release-Informationen stehen in der README.
 
-## 1. Wofuer ist Yazio Overview da?
+Die Screenshots zeigen Demo-Daten. Bei echten Daten sehen Namen, Mengen, Zeitraeume und Werte anders aus.
 
-Yazio Overview ist ein lokales Webtool fuer Yazio-Ernaehrungsdaten. Du kannst damit:
+## Grundprinzip
 
-- Yazio-Daten direkt synchronisieren
-- vorhandene `products.json` und `days.json` manuell importieren
-- einzelne Tage mit Mahlzeiten, Produkten und Makros auswerten
-- Zeitraeume auswerten und grafisch anzeigen
-- Listen und Verdichtungen erstellen
-- Tagesauswertungen als Excel oder PDF exportieren
-- Sport und Besonderheiten pro Tag lokal ergaenzen
-- Profilinformationen wie Name und Geburtsdatum fuer Ausdrucke speichern
+Yazio Overview wertet lokal gespeicherte Yazio-Daten aus. Der normale Weg ist der direkte `Yazio Import`. Danach kannst du in `Auswertung` einzelne Tage oder Zeitraeume anzeigen, kopieren und exportieren.
 
-Das Tool laeuft lokal oder in deinem eigenen Netzwerk. Deine Daten werden lokal gespeichert und nicht an einen fremden Dienst uebertragen.
+Zusaetzliche lokale Eingaben wie `Sport` und `Besonderheiten an diesem Tag` werden getrennt von den Yazio-Daten gespeichert. Sie bleiben deshalb auch nach neuen Importen erhalten.
 
-## 2. Starten
+## Menue und Status
 
-### Portable Windows-Version
+Das Burger-Menue oeffnet die Navigation. Je nach Konfiguration sind nicht alle Menuepunkte sichtbar.
 
-Wenn du die portable Windows-Version nutzt:
-
-1. ZIP-Datei aus dem GitHub Release herunterladen.
-2. ZIP-Datei entpacken.
-3. `Yazio Overview.exe` starten.
-4. Der Browser oeffnet sich automatisch.
-
-Deine Daten liegen im entpackten Ordner unter `data`.
-
-### Docker
-
-Wenn du Docker nutzt:
-
-```bash
-docker compose up --build
-```
-
-Danach erreichst du die Oberflaeche normalerweise unter:
-
-```text
-http://localhost:8080
-```
-
-Der Browser kann dabei "Nicht sicher" anzeigen, weil lokal per HTTP gearbeitet wird. Fuer einen lokalen oder internen Betrieb ist das normal.
-
-## 3. Anmeldung und Benutzer
-
-Ob eine Anmeldung erforderlich ist, haengt von der Konfiguration ab.
-
-### Ohne Benutzerverwaltung
-
-Wenn die Benutzerverwaltung deaktiviert ist, kommst du direkt in die App. Intern arbeitet das Tool dann mit dem Admin-Benutzer `1337` und speichert unter:
-
-```text
-data/1337
-```
-
-### Mit Benutzerverwaltung
-
-Wenn die Benutzerverwaltung aktiviert ist, siehst du zuerst eine Login-Maske. Der Admin kann Benutzer anlegen, aktivieren, deaktivieren und loeschen.
-
-Wichtig:
-
-- Der Admin heisst `admin`.
-- Der Admin hat die feste ID `1337`.
-- Neue Benutzer bekommen fortlaufende IDs ab `1`.
-- Jeder Benutzer hat einen eigenen Datenordner.
-- Beim Loeschen eines Benutzers wird auch dessen Datenordner geloescht.
-- Der Admin und der feste Demo-Benutzer koennen nicht geloescht werden.
-
-Eine Anmeldung bleibt per Cookie erhalten und muss nicht bei jedem Neustart neu eingegeben werden. Ueber `Logout` kannst du dich abmelden.
-
-### Demo-Login
-
-Wenn die Benutzerverwaltung aktiv ist, gibt es den festen Demo-Login:
-
-```text
-Benutzername: Demo
-Passwort: Demo
-```
-
-Dieser Benutzer arbeitet nur mit Mock-Daten. Es wird keine echte Yazio-Schnittstelle aufgerufen.
-
-## 4. Demo-Modus
-
-Der Demo-Modus ist zum Ausprobieren gedacht.
-
-Im Demo-Modus passiert beim Import Folgendes:
-
-- Es wird keine echte Verbindung zu Yazio aufgebaut.
-- Es werden Mock-Produkte und Mock-Tage erzeugt.
-- Eingegebene Yazio-Zugangsdaten werden ignoriert.
-- Das Passwortfeld zeigt in der Session immer das Demo-Passwort `passwordMock123`.
-- Die Demo-Daten gelten nur fuer die jeweilige Browser-Session.
-
-Damit koennen mehrere Personen parallel testen, ohne sich gegenseitig echte Daten zu ueberschreiben.
-
-## 5. Aufbau der Oberflaeche
-
-Links oben findest du das Burger-Menue. Darueber wechselst du zwischen den Bereichen:
+Immer sichtbar:
 
 - Auswertung
 - Listen
 - Profil
 - Yazio Import
-- manueller Import von JSON
-- Benutzer, falls du Admin bist und Benutzerverwaltung aktiv ist
 - Hilfe
 - Changelog
 
-Oben rechts siehst du den Status. Dort steht zum Beispiel, ob das Tool bereit ist, ob Demo-Daten aktiv sind und welcher Benutzer angemeldet ist.
+Nur bei aktiver Benutzerverwaltung und Admin-Login sichtbar:
 
-## 6. Auswertung eines Tages
+- Benutzer
 
-Im Bereich `Auswertung` kannst du zwischen `Ein Tag` und `Datumsbereich` wechseln.
+Oben rechts zeigt die Statusbox:
 
-![Tagesauswertung](screenshots/01-auswertung-tag.png)
+- ob Daten vorhanden sind
+- ob Demo-Daten aktiv sind
+- welcher Benutzer angemeldet ist
+- die App-Version
+- bei Benutzerverwaltung den `Logout`-Button
 
-Bei `Ein Tag` waehlst du ein Datum aus und klickst auf `Tag anzeigen`.
+## Auswertung
 
-Du siehst danach:
+<img src="screenshots/01-auswertung.png" alt="Auswertung" width="720">
 
-- Datum und Wochentag
+Die `Auswertung` ist die Hauptseite. Hier waehlst du entweder einen einzelnen Tag oder einen Datumsbereich.
+
+### Ein Tag
+
+Im Modus `Ein Tag` waehlst du ein Datum und klickst auf `Tag anzeigen`.
+
+Angezeigt werden:
+
+- Tagesdatum und Wochentag
 - Tagesmakros
-- Freitextfeld `Sport`
-- Freitextfeld `Besonderheiten an diesem Tag`
-- alle Mahlzeiten des Tages
+- Sport-Freitext
+- Besonderheiten des Tages
+- Mahlzeiten
 - alle Bestandteile je Mahlzeit
-- Makros pro Mahlzeit
-- Makros pro Produkt
+- Makros pro Mahlzeit und Produkt
 - Zuordnung `gegessen` oder `getrunken`
 
-### Navigation zum Vortag oder naechsten Tag
+Mit `Tag kopieren` wird der komplette Tag in die Zwischenablage kopiert. Mit `Mahlzeit kopieren` kopierst du nur die jeweilige Mahlzeit.
 
-Mit `← Vortag` und `Naechster Tag →` wechselst du schnell zwischen einzelnen Tagen. Der Button fuer den naechsten Tag ist deaktiviert, wenn kein spaeterer Tag verfuegbar ist.
+### Vortag und naechster Tag
 
-### Heute-Button
+Die Buttons `← Vortag` und `Naechster Tag →` wechseln den angezeigten Tag. Wenn kein naechster Tag vorhanden ist, wird der Button deaktiviert.
 
-Der Button `Heute` setzt das Datumsfeld auf das aktuelle Datum.
+### Sport
 
-### Sport erfassen
+Das Feld `Sport` ist ein lokaler Freitext pro Tag. Der Text erscheint spaeter auch in Excel und PDF.
 
-Im Feld `Sport` kannst du einen kurzen Freitext speichern, zum Beispiel:
+Beispiel:
 
 ```text
 45 Minuten Krafttraining
 ```
 
-Der Text wird lokal gespeichert und erscheint im Excel- und PDF-Export in der Sport-Zeile.
+### Besonderheiten an diesem Tag
 
-### Besonderheiten erfassen
+Das Feld `Besonderheiten an diesem Tag` ist ebenfalls ein lokaler Freitext pro Tag.
 
-Im Feld `Besonderheiten an diesem Tag` kannst du einen kurzen Hinweis zum Tag speichern, zum Beispiel:
+Beispiel:
 
 ```text
 Dienstreise, spaetes Abendessen
 ```
 
-Auch dieser Text wird lokal gespeichert und ueberlebt neue Yazio-Imports.
-
-### Tag kopieren
-
-Mit `Tag kopieren` wird die komplette Tagesauswertung in die Zwischenablage gelegt. Das ist praktisch fuer Dokumentationen, Nachrichten oder eigene Notizen.
-
-### Mahlzeit kopieren
-
-Mit `Mahlzeit kopieren` kopierst du nur die jeweilige Mahlzeit inklusive Bestandteilen und Makros.
-
 ### Gegessen oder getrunken
 
-Hinter jedem Eintrag gibt es eine Auswahl `gegessen` oder `getrunken`.
+Hinter jedem Eintrag gibt es eine Auswahl `gegessen` oder `getrunken`. Das Tool erkennt die Kategorie automatisch. Wenn die Erkennung nicht passt, kannst du die Auswahl manuell aendern.
 
-Das Tool erkennt die Kategorie automatisch, zum Beispiel anhand von Einheit, Produktart und typischen Trinkprodukten. Wenn die Erkennung nicht passt, kannst du den Eintrag manuell umstellen.
+Die automatische Erkennung nutzt mehrere Signale, zum Beispiel Einheit, Produktdaten, typische Getraenke und gelernte Korrekturen. Manuelle Korrekturen werden nur gespeichert, wenn sie von der erkannten Kategorie abweichen.
 
-Die manuelle Aenderung wird nur gespeichert, wenn sie von der erkannten Kategorie abweicht. So bleiben echte Korrekturen erhalten, ohne unnoetig viele Daten zu schreiben.
+Grenze: Wenn ein Eintrag in Yazio geloescht und spaeter als neuer Eintrag neu importiert wird, kann eine alte manuelle Tageskorrektur nicht zwingend auf den neuen Eintrag uebertragen werden.
 
-Wichtig:
+## Datumsbereich und Graph
 
-- Eine manuelle Tageskorrektur gilt fuer genau diesen Eintrag an diesem Tag.
-- Eine gelernte Produktregel kann zukuenftige und nicht explizit korrigierte Eintraege beeinflussen.
-- Wenn ein Produkt spaeter in Yazio geloescht und neu importiert wird, kann eine alte manuelle Korrektur ins Leere laufen. Das ist unkritisch; sie wird dann nicht mehr auf einen vorhandenen Eintrag angewendet.
+<img src="screenshots/02-auswertung-zeitraum.png" alt="Datumsbereich mit Graph" width="720">
 
-## 7. Auswertung eines Datumsbereichs
+Im Modus `Datumsbereich` waehlst du `Von` und `Bis` und klickst auf `Bereich anzeigen`.
 
-Bei `Datumsbereich` waehlst du ein Start- und Enddatum aus und klickst auf `Bereich anzeigen`.
+Der Bereich zeigt die Tage einzeln untereinander. Du kannst den kompletten Bereich als Excel oder PDF exportieren.
 
-![Datumsbereich mit Graph](screenshots/02-auswertung-zeitraum-graph.png)
+### Graph
 
-Der Bereich zeigt alle Tage einzeln untereinander. Jeder Tag kann separat kopiert werden. Du kannst den kompletten Bereich auch als Excel oder PDF exportieren.
+Mit `Graph anzeigen` blendest du einen Verlauf ein. Der Graph zeigt pro Tag einen Punkt. Die Punkte sind verbunden.
 
-### Standard-Datumsbereich
-
-Im Profil kannst du einstellen, wie viele Tage beim ersten Aufruf standardmaessig zurueckgeschaut werden sollen. Wenn dort zum Beispiel `14` steht, beginnt die Auswertung standardmaessig bei heute minus 14 Tage.
-
-### Plausibilitaet der Datumsfelder
-
-Das Startdatum darf nicht spaeter als das Enddatum sein. Wenn du ein ungueltiges Intervall waehlst, zeigt das Tool eine Meldung und wertet den Bereich nicht aus.
-
-## 8. Graph fuer den Kalorienverlauf
-
-Im Datumsbereich kannst du den Graphen einblenden. Der Graph zeigt pro Tag einen Punkt und verbindet die Punkte zu einem Verlauf.
-
-Du kannst unterschiedliche Kennzahlen anzeigen, zum Beispiel:
+Du kannst die Metrik wechseln, zum Beispiel:
 
 - Kalorien
 - Protein
 - Kohlenhydrate
 - Fett
 
-Ein Klick auf einen Punkt oeffnet den jeweiligen Tag in einem neuen Browser-Tab. Dadurch bleibt die Bereichsliste erhalten und du musst nicht wieder nach oben scrollen.
+Ein Klick auf einen Punkt oeffnet den passenden Tag in einem neuen Browser-Tab. So bleibt die Bereichsauswertung im aktuellen Tab erhalten.
 
-Der Graph zeigt zusaetzlich Orientierungswerte, zum Beispiel Durchschnittswerte. Diese Linien sind bewusst dezent gehalten, damit sie die eigentlichen Tagespunkte nicht verdecken.
+### Datumsfelder und Automatismen
 
-## 9. Exporte nach Excel und PDF
+Die Datumsfelder haben mehrere Automatismen:
 
-Du kannst einen einzelnen Tag oder einen Datumsbereich exportieren.
+- `Heute` setzt das jeweilige Datumsfeld auf das aktuelle Datum.
+- Beim ersten Aufruf wird der Standard-Datumsbereich aus dem Profil verwendet.
+- Das Startdatum fuer die Auswertung ist normalerweise `heute minus X Tage`.
+- `X` stellst du im Profil unter `Standard-Datumsbereich` ein.
+- Das Enddatum ist normalerweise heute.
+- Wenn Daten vorhanden sind, begrenzen Browser und App die Auswahl auf sinnvolle Werte.
+- `Von` darf nicht spaeter als `Bis` sein.
+- Wenn `Von` spaeter als `Bis` ist, wird der Bereich nicht ausgewertet.
 
-### Excel-Export
+Grenzen:
 
-Bei einem Datumsbereich erzeugt das Tool pro Tag ein eigenes Tabellenblatt. Im Excel stehen:
+- Browser zeigen Datumsfelder je nach Betriebssystem unterschiedlich an.
+- Browser-validierungen koennen alte Werte in kleinen Hinweisblasen zeigen, wenn ein Feld vorher einen anderen Maximalwert hatte. Die App prueft den Bereich trotzdem nochmal selbst.
+- Wenn fuer einen Tag keine Yazio-Daten vorhanden sind, kann er nicht als Tagesauswertung angezeigt werden.
 
-- Titel der Tagesuebersicht
+## Listen
+
+<img src="screenshots/03-listen.png" alt="Listen" width="720">
+
+Der Bereich `Listen` sammelt Suchfunktionen und Verdichtungen.
+
+Moegliche Listen:
+
+- Produktsuche
+- Top 100 Lebensmittel
+- Tage nach Kalorien
+- Tage nach Protein
+- Verdichtung nach Mahlzeiten
+- Verdichtung nach Wochentagen
+- Verdichtung nach Monaten
+
+### Produktsuche
+
+Die Produktsuche ist nicht case-sensitiv. Du kannst Sternchen als Platzhalter verwenden.
+
+Beispiel:
+
+```text
+*skyr*
+```
+
+Das findet Produkte, deren Name irgendwo `skyr` enthaelt.
+
+Das Ergebnis zeigt unter anderem:
+
+- Lebensmittel
+- konsumierte Menge
+- Anzahl Tage
+- Kalorien
+- Protein
+
+Mit `Tage` oeffnest du die Tage, an denen das Produkt konsumiert wurde. Ein Klick auf einen Tag oeffnet die Tagesauswertung in einem neuen Tab.
+
+### Sortierung
+
+Je nach Liste kannst du sortieren, zum Beispiel nach Menge, Kalorien, Protein oder Datum.
+
+### Gemerkte Auswahl
+
+Die zuletzt ausgewaehlte Liste wird gespeichert. Wenn du spaeter wieder in den Bereich `Listen` wechselst, ist die letzte Auswahl wieder vorbereitet.
+
+## Profil
+
+<img src="screenshots/04-profil.png" alt="Profil" width="720">
+
+Im Bereich `Profil` speicherst du persoenliche Daten und lokale Einstellungen.
+
+### Name
+
+Der Name erscheint in Excel und PDF. Wenn ein Name gespeichert ist, wird er auch fuer Export-Dateinamen genutzt.
+
+### Geburtsdatum
+
+Das Geburtsdatum erscheint in Excel und PDF im Format `TT.MM.JJJJ`.
+
+### Standard-Datumsbereich
+
+Hier stellst du ein, wie viele Tage die Auswertung standardmaessig zurueckgehen soll.
+
+Beispiele:
+
+- `7`: Startdatum ist heute minus 7 Tage.
+- `14`: Startdatum ist heute minus 14 Tage.
+
+Diese Einstellung betrifft die vorbelegten Datumsfelder in der Auswertung. Sie veraendert keine gespeicherten Yazio-Daten.
+
+### Yazio Benutzername und Passwort
+
+Diese Zugangsdaten werden lokal gespeichert und fuer den direkten Import genutzt.
+
+Im Demo-Modus werden eingegebene Credentials nicht verwendet. Das Passwortfeld zeigt dann sessionbasiert das Demo-Passwort.
+
+### Passwort aendern
+
+Wenn die Benutzerverwaltung aktiv ist, koennen normale Benutzer ihr lokales Passwort im Profil aendern. Admin- und Demo-Passwort werden anders verwaltet und sind hier nicht aenderbar.
+
+## Yazio Import
+
+<img src="screenshots/05-yazio-import.png" alt="Yazio Import" width="720">
+
+Im Bereich `Yazio Import` holst du Daten direkt aus Yazio.
+
+Vor dem Import sollten im Profil Yazio-Benutzername und Passwort gespeichert sein.
+
+Der Importbereich enthaelt:
+
+- Startdatum
+- Enddatum
+- Heute-Buttons
+- Import-Button
+- Statusmeldung
+- scrollbares Log
+
+### Vorgeschlagener Importzeitraum
+
+Das Tool schlaegt den Importzeitraum automatisch vor:
+
+- Gibt es einen unvollstaendigen Tag, startet der Vorschlag beim aeltesten unvollstaendigen Tag.
+- Gibt es keinen unvollstaendigen Tag, startet der Vorschlag mit dem Standard-Rueckblick.
+- Das Enddatum ist normalerweise heute.
+
+Damit muessen historische Daten nicht jedes Mal komplett neu geladen werden. Gleichzeitig kann ein heute nur teilweise importierter Tag spaeter automatisch vervollstaendigt werden.
+
+### Import-Log
+
+Waehrend des Imports zeigt die Statuszeile den aktuellen Gesamtzustand. Darunter steht ein scrollbares Log mit Details.
+
+### Demo-Modus
+
+Im Demo-Modus wird keine echte Yazio-Schnittstelle aufgerufen. Der Import erzeugt Mock-Daten und protokolliert das auch im Log.
+
+Grenzen:
+
+- Google-Login und 2FA sind nicht Teil des direkten Imports.
+- Wenn Yazio die Schnittstelle oder den Login aendert, kann ein Import fehlschlagen.
+- Bei echten Zugangsdaten sollten Benutzername und Passwort korrekt im Profil gespeichert sein.
+
+## Benutzer
+
+<img src="screenshots/08-benutzer.png" alt="Benutzerverwaltung" width="720">
+
+Der Bereich `Benutzer` erscheint nur, wenn die Benutzerverwaltung aktiv ist und du als Admin angemeldet bist.
+
+Der Admin kann:
+
+- Benutzer anlegen
+- Benutzer aktivieren
+- Benutzer deaktivieren
+- Benutzer loeschen
+
+Wichtig:
+
+- Der Admin hat die feste ID `1337`.
+- Neue Benutzer erhalten IDs ab `1`.
+- Jeder Benutzer hat einen eigenen Datenordner.
+- Beim Loeschen eines normalen Benutzers wird auch dessen Datenordner geloescht.
+- Admin und Demo-Benutzer koennen nicht geloescht werden.
+- Deaktivierte Benutzer koennen sich nicht anmelden.
+
+Wenn die Benutzerverwaltung deaktiviert ist, arbeitet die App ohne Login mit dem Admin-Datenordner.
+
+## Hilfe
+
+<img src="screenshots/06-hilfe.png" alt="Hilfe" width="720">
+
+Die eingebaute `Hilfe` erklaert die wichtigsten Funktionen direkt in der Oberflaeche. Sie ist bewusst kurz gehalten und eignet sich als schnelle Erinnerung.
+
+Fuer ausfuehrlichere Erklaerungen nutzt du diesen Benutzerleitfaden.
+
+## Changelog
+
+<img src="screenshots/07-changelog.png" alt="Changelog" width="720">
+
+Der Bereich `Changelog` zeigt die letzten Aenderungen chronologisch, neueste zuerst.
+
+Der Changelog ist hilfreich, wenn du nach einem Update wissen willst, was neu ist oder warum sich ein Verhalten geaendert hat.
+
+## Exporte
+
+Excel und PDF kannst du aus der Auswertung starten.
+
+### Einzelner Tag
+
+Im Modus `Ein Tag` nutzt du:
+
+- `Tag als Excel`
+- `Tag als PDF`
+
+### Datumsbereich
+
+Im Modus `Datumsbereich` nutzt du:
+
+- `Bereich als Excel`
+- `Bereich als PDF`
+
+### Inhalt der Exporte
+
+Die Exporte enthalten:
+
 - Name
 - Geburtsdatum
 - Datum
@@ -233,17 +324,15 @@ Bei einem Datumsbereich erzeugt das Tool pro Tag ein eigenes Tabellenblatt. Im E
 - gegessene Produkte
 - getrunkene Produkte
 - Makros pro Mahlzeit
-- Gesamtmakros
-- Sport-Freitext
-- Besonderheiten des Tages
+- Tagesgesamtwerte
+- Sport
+- Besonderheiten an diesem Tag
 
-### PDF-Export
-
-Der PDF-Export nutzt dasselbe Grundlayout wie der Excel-Export. Er ist fuer Ausdrucke gedacht und enthaelt ebenfalls Name, Geburtsdatum, Sport und Besonderheiten.
+Bei Excel bekommt jeder Tag eines Bereichs ein eigenes Tabellenblatt.
 
 ### Dateinamen
 
-Wenn im Profil ein Name hinterlegt ist, wird er im Dateinamen verwendet.
+Wenn im Profil ein Name gespeichert ist, wird er im Dateinamen verwendet.
 
 Beispiele:
 
@@ -252,288 +341,44 @@ Daniel_Zwamborn_Yazio-Export_19.06.2026.xlsx
 Daniel_Zwamborn_Yazio-Export_05.06.2026-19.06.2026.pdf
 ```
 
-Bei einem einzelnen Tag wird das Datum nicht doppelt ausgegeben.
+Bei einem einzelnen Tag wird das Datum nur einmal ausgegeben.
 
-## 10. Listen und Verdichtungen
+## Demo-Daten
 
-Im Bereich `Listen` findest du Produktsuchen, Ranglisten und zusammengefasste Auswertungen.
+Demo-Daten sind zum Ausprobieren gedacht.
 
-![Produktsuche](screenshots/03-listen-produktsuche.png)
+Im Demo-Modus gilt:
 
-### Produktsuche
+- Es wird keine echte Yazio-Schnittstelle genutzt.
+- Importierte Daten werden simuliert.
+- Eingegebene Credentials werden nicht verwendet.
+- Mehrere Demo-Sessions sind voneinander getrennt.
 
-Die Produktsuche ist nicht case-sensitiv. Du kannst mit Sternchen suchen:
+Grenze: Demo-Daten sind nicht deine echten Yazio-Daten und eignen sich nicht fuer eine echte Ernaehrungsauswertung.
 
-```text
-*skyr*
-```
-
-Das findet Produkte, deren Name irgendwo `skyr` enthaelt.
-
-Das Ergebnis zeigt:
-
-- Lebensmittel
-- konsumierte Menge
-- Anzahl der Tage
-- Kalorien
-- Protein
-
-Mit `Tage` oeffnest du die Liste der Tage, an denen dieses Produkt konsumiert wurde.
-
-### Sortierung
-
-Je nach Liste kannst du sortieren, zum Beispiel nach:
-
-- Menge aufsteigend
-- Menge absteigend
-- Kalorien
-- Protein
-- Datum
-
-### Top 100 Lebensmittel
-
-Diese Liste zeigt die am meisten konsumierten Lebensmittel. Sie ist hilfreich, um haeufige Lebensmittel oder Gewohnheiten zu erkennen.
-
-### Tage nach Kalorien
-
-Diese Liste zeigt Tage sortiert nach Kalorien. Ein Klick auf einen Tag oeffnet die Tagesuebersicht in einem neuen Tab.
-
-### Tage nach Protein
-
-Diese Liste zeigt Tage sortiert nach Protein. Das ist nuetzlich, wenn du besonders proteinreiche oder proteinarme Tage finden moechtest.
-
-### Verdichtung nach Mahlzeiten
-
-Diese Auswertung fasst Daten nach Mahlzeiten zusammen, zum Beispiel Fruehstueck, Mittagessen, Abendessen und Snack.
-
-### Verdichtung nach Wochentagen
-
-Diese Auswertung zeigt Muster nach Wochentagen. So erkennst du zum Beispiel, ob Wochenenden anders aussehen als Arbeitstage.
-
-### Verdichtung nach Monaten
-
-Diese Auswertung fasst die Daten monatsweise zusammen. Das ist praktisch fuer laengere Zeitraeume.
-
-### Ausgewaehlte Liste merken
-
-Die zuletzt ausgewaehlte Liste wird gespeichert. Wenn du spaeter wieder in den Listenbereich gehst, steht die zuletzt genutzte Auswahl wieder bereit.
-
-## 11. Profil
-
-Im Bereich `Profil` speicherst du persoenliche Informationen und lokale Einstellungen.
-
-![Profil](screenshots/05-profil.png)
-
-### Name
-
-Der Name erscheint in Excel- und PDF-Exporten. Wenn ein Name gespeichert ist, wird er auch fuer die Dateinamen der Exporte verwendet.
-
-### Geburtsdatum
-
-Das Geburtsdatum erscheint in Excel und PDF im Format:
-
-```text
-TT.MM.JJJJ
-```
-
-### Standard-Datumsbereich
-
-Hier legst du fest, wie viele Tage die Auswertung standardmaessig zurueckgehen soll.
-
-Beispiel:
-
-- `7` bedeutet: Startdatum ist heute minus 7 Tage.
-- `14` bedeutet: Startdatum ist heute minus 14 Tage.
-
-### Yazio Benutzername und Passwort
-
-Hier kannst du deine Yazio-Zugangsdaten lokal speichern. Sie werden fuer den direkten Yazio-Import genutzt.
-
-Bei lokalem oder eigenem On-Prem-Betrieb werden die Daten lokal abgelegt. Im Demo-Modus werden eingegebene Credentials nicht verwendet.
-
-### Passwort aendern
-
-Wenn die Benutzerverwaltung aktiv ist, kannst du als normaler Benutzer dein lokales Passwort aendern. Der Demo-Benutzer hat ein festes Passwort.
-
-## 12. Yazio Import
-
-Im Bereich `Yazio Import` synchronisierst du Daten direkt aus Yazio.
-
-![Yazio Import mit Log](screenshots/04-yazio-import-log.png)
-
-Vor dem Import sollten im Profil Yazio-Benutzername und Passwort gespeichert sein.
-
-Der Importbereich bietet:
-
-- Startdatum
-- Enddatum
-- Heute-Buttons
-- Import starten
-- Statusmeldung
-- scrollbares Log
-
-### Vorgeschlagener Zeitraum
-
-Das Tool schlaegt automatisch einen Importzeitraum vor:
-
-- Wenn es einen unvollstaendigen Tag gibt: vom aeltesten unvollstaendigen Tag bis heute.
-- Sonst: vom empfohlenen Startdatum bis heute.
-
-Dadurch musst du historische Daten nicht immer wieder vollstaendig laden, kannst aber unvollstaendige Tage nachtraeglich vervollstaendigen.
-
-### Import-Log
-
-Unter der Statusmeldung erscheint ein scrollbarer Logbereich. Dort siehst du, was gerade passiert. Die Statusleiste bleibt kurz und lesbar; Details stehen darunter im Log.
-
-### Inkrementelle Imports
-
-Jeder Import wird als eigener Snapshot gespeichert. Danach erstellt das Tool daraus eine konsolidierte Sicht.
-
-Bei ueberschneidenden Tagen gilt:
-
-- vollstaendige Tage schlagen unvollstaendige Tage
-- bei gleicher Qualitaet gewinnt der spaetere Import
-
-So kann ein Tag, der mittags nur halb importiert wurde, spaeter durch einen vollstaendigen Import ersetzt werden.
-
-## 13. Manueller Import von JSON
-
-Im Bereich `manueller Import von JSON` kannst du `products.json` und `days.json` hochladen.
-
-![Manueller Import und Admin-Werkzeuge](screenshots/06-admin-json-backup-qualitaet.png)
-
-Das ist vor allem nuetzlich fuer:
-
-- alte Exporte
-- Reparaturen
-- Tests
-- Backup-Wiederherstellungen
-- Daten, die mit einem externen Exporter erzeugt wurden
-
-Wichtig: Der manuelle Import ueberschreibt die konsolidierten Arbeitsdateien. Lokale Zusatzdaten wie Sport und Besonderheiten bleiben getrennt gespeichert.
-
-## 14. Backup und Wiederherstellung
-
-Im Admin-/Importbereich gibt es Funktionen fuer Backup und Wiederherstellung.
-
-Ein Backup ist sinnvoll:
-
-- vor groesseren Imports
-- vor Benutzerumstellungen
-- vor Tests mit echten Daten
-- bevor du Daten manuell austauschst
-
-Beim Wiederherstellen werden gespeicherte Daten aus dem Backup zurueckgespielt.
-
-## 15. Datenqualitaet und Zuordnungsregeln
-
-Das Tool kann Datenqualitaet anzeigen und Regeln fuer `gegessen` oder `getrunken` verwalten.
-
-Die automatische Erkennung betrachtet unter anderem:
-
-- Einheit
-- Produktinformationen
-- bekannte Trinkkategorien
-- Produktnamen als schwaches Signal
-- manuelle Korrekturen
-
-Das ist absichtlich nicht nur eine reine Namenssuche. Ein Proteinriegel mit Einheit `bar` soll zum Beispiel nicht als Getraenk erscheinen, nur weil der Name Sport- oder Proteinbegriffe enthaelt.
-
-## 16. Benutzerverwaltung
-
-Wenn du als Admin angemeldet bist und die Benutzerverwaltung aktiv ist, erscheint der Bereich `Benutzer`.
-
-Dort kannst du:
-
-- Benutzer anlegen
-- Benutzer aktivieren
-- Benutzer deaktivieren
-- Benutzer loeschen
-
-Beim Loeschen eines normalen Benutzers wird auch dessen Datenordner entfernt.
-
-Hinweise:
-
-- Der Admin-Benutzer kann nicht geloescht werden.
-- Der Demo-Benutzer kann nicht geloescht werden.
-- Deaktivierte Benutzer koennen sich nicht anmelden.
-- Bestehende Daten bleiben je Benutzer getrennt.
-
-## 17. Hilfe und Changelog
-
-Die App enthaelt eine eingebaute Hilfe und einen Changelog-Bereich.
-
-![Hilfe](screenshots/07-hilfe.png)
-
-Die Hilfe erklaert die wichtigsten Funktionen direkt in der Oberflaeche. Im Changelog findest du die letzten Aenderungen chronologisch, neueste zuerst.
-
-## 18. Wo werden Daten gespeichert?
-
-Standardmaessig liegen die Daten lokal im Ordner `data`.
-
-Mit Benutzerverwaltung:
-
-```text
-data/<user_id>
-```
-
-Ohne Benutzerverwaltung:
-
-```text
-data/1337
-```
-
-Wichtige Dateien:
-
-```text
-products.json
-days.json
-settings.json
-notes.json
-sport-notes.json
-```
-
-Zusatzdaten wie Sport und Besonderheiten werden bewusst separat gespeichert. Dadurch gehen sie bei neuen Yazio-Imports nicht verloren.
-
-## 19. Haeufige Fragen
+## Haeufige Fragen
 
 ### Warum zeigt der Browser "Nicht sicher"?
 
-Weil die App lokal per HTTP laeuft. Fuer einen lokalen Betrieb ist das normal. HTTPS waere moeglich, ist fuer den reinen lokalen oder internen Betrieb aber meist unnoetig kompliziert.
-
-### Werden meine Yazio-Zugangsdaten ins Internet gesendet?
-
-Die Zugangsdaten werden nur fuer den direkten Import gegen Yazio verwendet. Im Demo-Modus werden sie nicht verwendet. Das Tool selbst ist fuer lokalen Betrieb gedacht.
-
-### Funktioniert Login mit Google oder 2FA?
-
-Der direkte Import nutzt den klassischen Yazio-Login. Google-Login und 2FA sind nicht Teil des aktuellen Imports.
-
-### Was passiert, wenn ich Daten spaeter erneut importiere?
-
-Historische vollstaendige Daten bleiben erhalten. Ueberschneidende Tage werden nach Qualitaet und Importzeitpunkt zusammengefuehrt.
-
-### Was passiert mit Sport und Besonderheiten bei einem neuen Import?
-
-Diese Felder bleiben erhalten, weil sie lokal getrennt von den Yazio-Daten gespeichert werden.
+Die App laeuft lokal per HTTP. Fuer den lokalen oder internen Betrieb ist das normal.
 
 ### Warum sehe ich keine Daten?
 
 Moegliche Ursachen:
 
-- Es wurde noch nichts importiert.
+- Es wurde noch kein Yazio Import ausgefuehrt.
 - Der gewaehlte Zeitraum enthaelt keine Daten.
 - Du bist mit einem anderen Benutzer angemeldet.
-- Die Userverwaltung wurde aktiviert und du nutzt einen neuen Datenordner.
+- Die Benutzerverwaltung wurde aktiviert und der neue Benutzer hat noch keine Daten.
 
-### Kann ich das Tool parallel mit mehreren Benutzern nutzen?
+### Was passiert mit Sport und Besonderheiten bei neuen Imports?
 
-Ja. Mit Benutzerverwaltung hat jeder Benutzer einen eigenen Datenordner. Demo-Sessions sind ebenfalls voneinander getrennt.
+Sie bleiben erhalten, weil sie getrennt von den Yazio-Daten gespeichert werden.
 
-### Kann ich die JSON-Dateien trotzdem anschauen?
+### Kann ich mehrere Benutzer parallel nutzen?
 
-Ja. Das Tool erzeugt weiterhin `products.json` und `days.json` als konsolidierte Arbeitsdateien. Sie liegen im jeweiligen Datenordner.
+Ja, wenn die Benutzerverwaltung aktiv ist. Jeder Benutzer arbeitet in seinem eigenen Datenordner.
 
-### Was sollte ich vor groesseren Aenderungen tun?
+### Was passiert, wenn ein Tag erst unvollstaendig importiert wurde?
 
-Erstelle ein Backup. Das ist besonders sinnvoll vor manuellen Imports, Benutzerumstellungen oder Tests mit echten Daten.
+Ein spaeterer vollstaendiger Import kann den unvollstaendigen Tag ersetzen. Das ist Absicht, damit ein am Mittag importierter Tag spaeter korrekt vervollstaendigt werden kann.

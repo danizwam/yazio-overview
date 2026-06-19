@@ -67,8 +67,9 @@ public class YazioOverviewApp {
     private static final int DEFAULT_SYNC_LOOKBACK_DAYS = 14;
     private static final String APP_VERSION = configuredValue("yazio.app.version", "YAZIO_APP_VERSION", "dev");
     private static final String BUILD_DATE = configuredValue("yazio.build.date", "YAZIO_BUILD_DATE", "");
-    private static final boolean DEMO_MODE = Boolean.parseBoolean(configuredValue("yazio.demo.mode", "YAZIO_DEMO_MODE", "false"));
-    private static final boolean USER_MANAGEMENT = !DEMO_MODE && Boolean.parseBoolean(configuredValue("yazio.user.management", "YAZIO_USER_MANAGEMENT", "false"));
+    private static final boolean DEMO_MODE = configuredFlag("yazio.demo.mode", "YAZIO_DEMO_MODE", false);
+    private static final boolean USER_MANAGEMENT = !DEMO_MODE && configuredFlag("yazio.user.management", "YAZIO_USER_MANAGEMENT", false);
+    private static final boolean DEVELOPER_MODE = configuredFlag("developer", "DEVELOPER", false);
     private static final String ADMIN_ID = "1337";
     private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_PASSWORD = configuredValue("yazio.admin.password", "YAZIO_ADMIN_PASSWORD", "admin");
@@ -194,6 +195,7 @@ public class YazioOverviewApp {
                 "buildDate", BUILD_DATE
         ));
         body.put("demoMode", demoRequest());
+        body.put("developerMode", DEVELOPER_MODE);
         if (demoRequest()) {
             body.put("demoPassword", DEMO_PASSWORD);
         }
@@ -752,6 +754,10 @@ public class YazioOverviewApp {
     }
 
     private void upload(HttpExchange exchange) throws IOException {
+        if (!DEVELOPER_MODE) {
+            send(exchange, 403, Map.of("error", "Der manuelle JSON-Import ist nur im Developer-Modus verfuegbar."));
+            return;
+        }
         if (!exchange.getRequestMethod().equals("POST")) {
             send(exchange, 405, Map.of("error", "Method not allowed"));
             return;
@@ -2091,6 +2097,14 @@ public class YazioOverviewApp {
             configured = ConfigHolder.CONFIG.getProperty(property);
         }
         return configured == null || configured.isBlank() ? fallback : configured;
+    }
+
+    private static boolean configuredFlag(String property, String environment, boolean fallback) {
+        String value = configuredValue(property, environment, fallback ? "true" : "false").trim();
+        return value.equals("1")
+                || value.equalsIgnoreCase("true")
+                || value.equalsIgnoreCase("yes")
+                || value.equalsIgnoreCase("on");
     }
 
     private static Path defaultConfigFile() {

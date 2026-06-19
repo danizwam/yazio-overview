@@ -8,6 +8,7 @@ services:
       YAZIO_DEMO_MODE: "false"
       YAZIO_USER_MANAGEMENT: "false"
       YAZIO_ADMIN_PASSWORD: "admin"
+      DEVELOPER: "0"
     volumes:
       - ./data:/app/data
     restart: unless-stopped
