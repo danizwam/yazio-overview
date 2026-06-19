@@ -2,6 +2,8 @@
 
 Yazio Overview ist ein lokales Webtool zur Auswertung von Yazio-Ernaehrungsdaten. Das Tool kann Daten direkt aus Yazio synchronisieren, daraus konsolidierte `products.json` und `days.json` erzeugen und diese fuer Tagesauswertungen, Listen, Excel- und PDF-Exporte verwenden.
 
+Einen ausfuehrlichen Benutzerleitfaden mit Screenshots findest du unter [docs/benutzerleitfaden.md](docs/benutzerleitfaden.md).
+
 ## Start mit Docker
 
 ```bash
