@@ -1504,6 +1504,7 @@ public class YazioOverviewApp {
             }
             Map<String, Object> dayMap = (Map<String, Object>) dayMapRaw;
             Daily daily = parseDaily((Map<String, Object>) dayMap.get("daily"));
+            ExerciseSummary exercises = parseExercises((Map<String, Object>) dayMap.get("exercises"));
             List<ConsumedProduct> products = new ArrayList<>();
             List<SimpleProduct> simpleProducts = new ArrayList<>();
             Object consumedRaw = dayMap.get("consumed");
@@ -1545,9 +1546,44 @@ public class YazioOverviewApp {
                     }
                 }
             }
-            days.put(date, new Day(date, daily, products, simpleProducts));
+            days.put(date, new Day(date, daily, products, simpleProducts, exercises));
         }
         return days;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ExerciseSummary parseExercises(Map<String, Object> map) {
+        if (map == null) {
+            return ExerciseSummary.empty();
+        }
+        double activityEnergy = 0;
+        double steps = 0;
+        Object activityRaw = map.get("activity");
+        if (activityRaw instanceof Map<?, ?> activityMapRaw) {
+            Map<String, Object> activity = (Map<String, Object>) activityMapRaw;
+            activityEnergy = dbl(activity.get("energy"));
+            steps = dbl(activity.get("steps"));
+        }
+        return new ExerciseSummary(
+                activityEnergy,
+                exerciseListEnergy(map.get("training")),
+                exerciseListEnergy(map.get("custom_training")),
+                steps
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private static double exerciseListEnergy(Object raw) {
+        if (!(raw instanceof List<?> list)) {
+            return 0;
+        }
+        double energy = 0;
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> itemRaw) {
+                energy += dbl(((Map<String, Object>) itemRaw).get("energy"));
+            }
+        }
+        return energy;
     }
 
     private static Daily parseDaily(Map<String, Object> map) {

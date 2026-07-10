@@ -101,7 +101,13 @@ public final class DemoDataFactory {
                 pick(random, "demo-banana", "demo-apple", "demo-strawberries"), 80 + random.nextInt(70));
         Macro total = total(entries);
         Daily daily = new Daily(total.energy, total.carbs, total.protein, total.fat, 2200);
-        return new Day(date, daily, entries, List.of());
+        ExerciseSummary exercises = new ExerciseSummary(
+                120 + random.nextInt(260),
+                random.nextInt(4) == 0 ? 80 + random.nextInt(180) : 0,
+                0,
+                3500 + random.nextInt(6500)
+        );
+        return new Day(date, daily, entries, List.of(), exercises);
     }
 
     private static void addMeal(List<ConsumedProduct> entries, LocalDate date, String meal, Random random, Object... pairs) {

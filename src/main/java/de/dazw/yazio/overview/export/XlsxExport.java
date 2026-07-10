@@ -113,7 +113,7 @@ public final class XlsxExport {
                     new Cell(drinkText, 7)
             )));
         }
-        rows.add(new Row(22, List.of(new Cell("Gesamt:", 6), new Cell(report.total().inline(), 6), new Cell("", 6))));
+        rows.add(new Row(textRowHeight(dayTotalBlock(report)), List.of(new Cell("Gesamt:", 6), new Cell(dayTotalBlock(report), 6), new Cell("", 6))));
         rows.add(new Row(18, List.of(new Cell(""), new Cell(""), new Cell(""))));
         String sportNote = report.sportNote() == null ? "" : report.sportNote();
         String dayNote = report.note() == null ? "" : report.note();

@@ -118,6 +118,7 @@ Damit muss nicht jedes Mal der komplette historische Zeitraum neu geladen werden
 - Direkter Yazio-Sync per Benutzername, Passwort und Datumsbereich
 - Inkrementelle Import-Snapshots mit konsolidierter Arbeitsdatei
 - Einzelner Tag mit Mahlzeiten, Bestandteilen und Makros
+- Anzeige von verbrauchten Aktivitätskalorien und Netto-Kalorien
 - Datumsbereich mit getrennt kopierbaren Tages- und Mahlzeitentexten
 - Konfigurierbarer Standard-Datumsbereich fuer die Auswertung
 - Tagesfreitexte fuer Sport und "Besonderheiten an diesem Tag", getrennt von den Yazio-Daten

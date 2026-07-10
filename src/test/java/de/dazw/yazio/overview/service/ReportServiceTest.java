@@ -31,6 +31,8 @@ class ReportServiceTest {
         assertEquals("Haehnchen mit Reis", meals.get("lunch").items().get(0).name());
         assertTrue(meals.get("lunch").items().get(0).aiGenerated());
         assertEquals(1263.2, report.total().energy, 0.0001);
+        assertEquals(175.0, report.burnedEnergy(), 0.0001);
+        assertEquals(1088.2, report.netEnergy(), 0.0001);
     }
 
     @Test

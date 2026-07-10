@@ -114,7 +114,11 @@ public final class Domain {
     public record Serving(String serving, double amount) {
     }
 
-    public record Day(LocalDate date, Daily daily, List<ConsumedProduct> products, List<SimpleProduct> simpleProducts) {
+    public record Day(LocalDate date, Daily daily, List<ConsumedProduct> products, List<SimpleProduct> simpleProducts,
+                      ExerciseSummary exercises) {
+        public Day(LocalDate date, Daily daily, List<ConsumedProduct> products, List<SimpleProduct> simpleProducts) {
+            this(date, daily, products, simpleProducts, ExerciseSummary.empty());
+        }
     }
 
     public record Daily(double energy, double carbs, double protein, double fat, double energyGoal) {
@@ -137,11 +141,45 @@ public final class Domain {
                                 Map<String, Double> nutrients, boolean aiGenerated) {
     }
 
+    public record ExerciseSummary(double activityEnergy, double trainingEnergy, double customTrainingEnergy,
+                                  double steps) {
+        public static ExerciseSummary empty() {
+            return new ExerciseSummary(0, 0, 0, 0);
+        }
+
+        public double burnedEnergy() {
+            return activityEnergy + trainingEnergy + customTrainingEnergy;
+        }
+
+        public Map<String, Object> toMap() {
+            return Map.of(
+                    "activityEnergy", Macro.round(activityEnergy),
+                    "trainingEnergy", Macro.round(trainingEnergy),
+                    "customTrainingEnergy", Macro.round(customTrainingEnergy),
+                    "burnedEnergy", Macro.round(burnedEnergy()),
+                    "steps", Macro.round(steps)
+            );
+        }
+    }
+
     public record DayReport(LocalDate date, Daily daily, List<MealReport> meals, Macro total, AppSettings settings,
-                            String note, String sportNote) {
+                            String note, String sportNote, ExerciseSummary exercises) {
         public DayReport(LocalDate date, Daily daily, List<MealReport> meals, Macro total, AppSettings settings,
                          String note) {
             this(date, daily, meals, total, settings, note, "");
+        }
+
+        public DayReport(LocalDate date, Daily daily, List<MealReport> meals, Macro total, AppSettings settings,
+                         String note, String sportNote) {
+            this(date, daily, meals, total, settings, note, sportNote, ExerciseSummary.empty());
+        }
+
+        public double burnedEnergy() {
+            return exercises == null ? 0 : exercises.burnedEnergy();
+        }
+
+        public double netEnergy() {
+            return total.energy - burnedEnergy();
         }
 
         public Map<String, Object> toMap() {
@@ -150,6 +188,9 @@ public final class Domain {
                     "date", date.toString(),
                     "daily", daily.toMap(),
                     "total", total.toMap(),
+                    "exercises", (exercises == null ? ExerciseSummary.empty() : exercises).toMap(),
+                    "burnedEnergy", Macro.round(burnedEnergy()),
+                    "netEnergy", Macro.round(netEnergy()),
                     "meals", mealMaps,
                     "note", note == null ? "" : note,
                     "sportNote", sportNote == null ? "" : sportNote,
@@ -160,7 +201,7 @@ public final class Domain {
         public String copyText() {
             StringBuilder text = new StringBuilder();
             text.append(date).append('\n');
-            text.append("Gesamt: ").append(total.inline()).append('\n');
+            text.append("Gesamt: ").append(Labels.dayTotalBlock(this)).append('\n');
             for (MealReport meal : meals) {
                 text.append('\n').append(Labels.mealLabel(meal.key())).append(": ").append(meal.total().inline()).append('\n');
                 for (FoodItem item : meal.items()) {

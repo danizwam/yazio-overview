@@ -20,6 +20,18 @@ const chartMetrics = {
     value: (day) => Number(day.total?.energy ?? day.daily?.energy ?? 0),
     goal: (day) => Number(day.daily?.energyGoal ?? 0)
   },
+  burned: {
+    label: "Verbraucht",
+    title: "Verbrauchte Kalorien pro Tag",
+    unit: "kcal",
+    value: (day) => Number(day.burnedEnergy ?? 0)
+  },
+  net: {
+    label: "Netto",
+    title: "Netto-Kalorien pro Tag",
+    unit: "kcal",
+    value: (day) => Number(day.netEnergy ?? Number(day.total?.energy ?? 0))
+  },
   protein: {
     label: "Protein",
     title: "Protein pro Tag",
@@ -550,7 +562,7 @@ function renderDays(days) {
     node.id = `day-${day.date}`;
     node.dataset.date = day.date;
     node.querySelector("h2").textContent = formatDate(day.date);
-    node.querySelector(".macro-strip").append(...macroPills(day.total));
+    node.querySelector(".macro-strip").append(...macroPills(day.total), ...energyBalancePills(day));
     node.querySelector(".copy-day").addEventListener("click", () => copy(day.copyText));
     const note = node.querySelector(".day-note");
     const sportNote = node.querySelector(".day-sport-note");
@@ -658,6 +670,8 @@ function renderRangeDashboard() {
     return;
   }
   const energies = days.map((day) => Number(day.total?.energy ?? 0));
+  const burned = days.map((day) => Number(day.burnedEnergy ?? 0));
+  const net = days.map((day) => Number(day.netEnergy ?? Number(day.total?.energy ?? 0)));
   const proteins = days.map((day) => Number(day.total?.protein ?? 0));
   const goals = days.map((day) => Number(day.daily?.energyGoal ?? 0)).filter((value) => value > 0);
   const maxDay = days.reduce((best, day) => Number(day.total?.energy ?? 0) > Number(best.total?.energy ?? 0) ? day : best, days[0]);
@@ -666,6 +680,8 @@ function renderRangeDashboard() {
   const cards = [
     ["Tage", days.length],
     ["Ø kcal", `${fmt(avg(energies))} kcal`],
+    ["Ø verbraucht", `${fmt(avg(burned))} kcal`],
+    ["Ø netto", `${fmt(avg(net))} kcal`],
     ["Ø Protein", `${fmt(avg(proteins))} g`],
     ["Ziel eingehalten", goals.length ? `${goalHits}/${goals.length}` : "-"],
     ["Höchster Tag", `${shortDate(maxDay.date)} · ${fmt(maxDay.total.energy)} kcal`],
@@ -733,6 +749,8 @@ function renderDayComparison() {
   }
   const rows = [
     ["Kalorien", dayA.total.energy, dayB.total.energy, "kcal"],
+    ["Verbraucht", dayA.burnedEnergy, dayB.burnedEnergy, "kcal"],
+    ["Netto", dayA.netEnergy, dayB.netEnergy, "kcal"],
     ["Protein", dayA.total.protein, dayB.total.protein, "g"],
     ["KH", dayA.total.carbs, dayB.total.carbs, "g"],
     ["Fett", dayA.total.fat, dayB.total.fat, "g"]
@@ -1317,6 +1335,13 @@ function macroPills(macro) {
     pill(fmt(macro.fat), "Fett g"),
     pill(fmt(macro.sugar), "Zucker g"),
     pill(fmt(macro.fiber), "Ballaststoffe g")
+  ];
+}
+
+function energyBalancePills(day) {
+  return [
+    pill(fmt(day.burnedEnergy ?? 0), "Verbraucht kcal"),
+    pill(fmt(day.netEnergy ?? Number(day.total?.energy ?? 0)), "Netto kcal")
   ];
 }
 

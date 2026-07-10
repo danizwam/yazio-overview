@@ -38,7 +38,8 @@ public final class TestData {
                         "Haehnchen mit Reis",
                         nutrients(720, 55, 55, 35),
                         true
-                ))
+                )),
+                new ExerciseSummary(100, 50, 25, 5000)
         );
         return new DataStore(products, Map.of(DAY, day), AppSettings.empty(),
                 Map.of(DAY, "Testnotiz"), Map.of(DAY, "45 Minuten Krafttraining"), Map.of());

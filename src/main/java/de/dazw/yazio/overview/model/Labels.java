@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 
 import de.dazw.yazio.overview.model.Domain.FoodItem;
 import de.dazw.yazio.overview.model.Domain.Macro;
+import de.dazw.yazio.overview.model.Domain.DayReport;
 import de.dazw.yazio.overview.model.Domain.MealReport;
 
 /**
@@ -77,6 +78,12 @@ public final class Labels {
                 + "KH " + format(total.carbs) + " g\n"
                 + "Protein " + format(total.protein) + " g\n"
                 + "Fett " + format(total.fat) + " g";
+    }
+
+    public static String dayTotalBlock(DayReport report) {
+        return report.total().inline() + "\n"
+                + "Verbraucht " + format(report.burnedEnergy()) + " kcal\n"
+                + "Netto " + format(report.netEnergy()) + " kcal";
     }
 
     public static String lineValue(String value, int underscores) {

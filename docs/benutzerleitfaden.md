@@ -51,6 +51,8 @@ Angezeigt werden:
 
 - Tagesdatum und Wochentag
 - Tagesmakros
+- verbrauchte Kalorien
+- Netto-Kalorien
 - Sport-Freitext
 - Besonderheiten des Tages
 - Mahlzeiten
@@ -107,6 +109,8 @@ Mit `Graph anzeigen` blendest du einen Verlauf ein. Der Graph zeigt pro Tag eine
 Du kannst die Metrik wechseln, zum Beispiel:
 
 - Kalorien
+- verbrauchte Kalorien
+- Netto-Kalorien
 - Protein
 - Kohlenhydrate
 - Fett
@@ -325,6 +329,8 @@ Die Exporte enthalten:
 - getrunkene Produkte
 - Makros pro Mahlzeit
 - Tagesgesamtwerte
+- verbrauchte Kalorien
+- Netto-Kalorien
 - Sport
 - Besonderheiten an diesem Tag
 

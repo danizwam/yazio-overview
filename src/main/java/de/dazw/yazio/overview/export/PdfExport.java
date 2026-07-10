@@ -72,7 +72,7 @@ public final class PdfExport {
         int drinkWidth = 194;
         int headerHeight = 24;
         int rowHeight = 104;
-        int totalHeight = 24;
+        int totalHeight = 42;
 
         page.cell(left, top - headerHeight, mealWidth, headerHeight, "Mahlzeit", 9, true, true);
         page.cell(left + mealWidth, top - headerHeight, eatenWidth, headerHeight, "gegessen wurde", 9, true, true);
@@ -87,7 +87,7 @@ public final class PdfExport {
         }
         y -= totalHeight;
         page.cell(left, y, mealWidth, totalHeight, "Gesamt:", 9, true, true);
-        page.cell(left + mealWidth, y, eatenWidth + drinkWidth, totalHeight, report.total().inline(), 9, false, true);
+        page.cell(left + mealWidth, y, eatenWidth + drinkWidth, totalHeight, dayTotalBlock(report), 9, false, true);
 
         page.boldAt("Sport:", 40, y - 42, 12);
         page.textBlock("F1", report.sportNote() == null ? "" : report.sportNote(), 95, y - 42, 10, 78, 2);

@@ -84,7 +84,8 @@ public final class ReportService {
         mealReports.sort(Comparator.comparingInt(meal -> mealOrder(meal.key())));
         return new DayReport(date, day.daily(), mealReports, total, snapshot.settings(),
                 snapshot.notes().getOrDefault(date, ""),
-                snapshot.sportNotes().getOrDefault(date, ""));
+                snapshot.sportNotes().getOrDefault(date, ""),
+                day.exercises());
     }
 
     private static FoodItem applyClassification(FoodItem item, Map<String, String> overrides) {
