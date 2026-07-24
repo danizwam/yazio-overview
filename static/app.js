@@ -562,7 +562,8 @@ function renderDays(days) {
     node.id = `day-${day.date}`;
     node.dataset.date = day.date;
     node.querySelector("h2").textContent = formatDate(day.date);
-    node.querySelector(".macro-strip").append(...macroPills(day.total), ...energyBalancePills(day));
+    node.querySelector(".energy-strip").append(...dayEnergyPills(day));
+    node.querySelector(".macro-strip").append(...macroPills(day.total, { includeEnergy: false }));
     node.querySelector(".copy-day").addEventListener("click", () => copy(day.copyText));
     const note = node.querySelector(".day-note");
     const sportNote = node.querySelector(".day-sport-note");
@@ -1327,20 +1328,25 @@ async function saveItemClassification(item, select) {
     : payload.classificationOverridden ? "Zuordnung gespeichert." : "Zuordnung auf Automatik zurückgesetzt.", "ok");
 }
 
-function macroPills(macro) {
-  return [
-    pill(fmt(macro.energy), "kcal"),
+function macroPills(macro, options = {}) {
+  const includeEnergy = options.includeEnergy !== false;
+  const pills = [
     pill(fmt(macro.carbs), "KH g"),
     pill(fmt(macro.protein), "Protein g"),
     pill(fmt(macro.fat), "Fett g"),
     pill(fmt(macro.sugar), "Zucker g"),
     pill(fmt(macro.fiber), "Ballaststoffe g")
   ];
+  if (includeEnergy) {
+    pills.unshift(pill(fmt(macro.energy), "kcal"));
+  }
+  return pills;
 }
 
-function energyBalancePills(day) {
+function dayEnergyPills(day) {
   return [
-    pill(fmt(day.burnedEnergy ?? 0), "Verbraucht kcal"),
+    pill(fmt(day.total?.energy ?? day.daily?.energy ?? 0), "kcal"),
+    pill(fmt(day.burnedEnergy ?? 0), "Verbrauch kcal"),
     pill(fmt(day.netEnergy ?? Number(day.total?.energy ?? 0)), "Netto kcal")
   ];
 }

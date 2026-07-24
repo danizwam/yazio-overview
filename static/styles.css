@@ -910,12 +910,21 @@ button:disabled {
   margin-bottom: 0;
 }
 
+.energy-strip,
 .macro-strip,
 .meal-total {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 16px 0;
+}
+
+.energy-strip {
+  margin-bottom: 8px;
+}
+
+.macro-strip {
+  margin-top: 0;
 }
 
 .note-field {
