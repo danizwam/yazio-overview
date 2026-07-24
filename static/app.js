@@ -875,6 +875,20 @@ function renderCalorieChart() {
       }
     });
     svg.append(group);
+    series.slice(1).forEach((item) => {
+      const seriesPoint = pointFor(item.value)(day, index);
+      const extraGroup = svgNode("g", { class: `chart-point ${item.className}`, tabindex: "0", role: "button" });
+      extraGroup.append(svgNode("title", {}, `${formatDate(day.date)}: ${titleLines} - Tag in neuem Tab öffnen`));
+      extraGroup.append(svgNode("circle", { cx: seriesPoint.x, cy: seriesPoint.y, r: 5 }));
+      extraGroup.addEventListener("click", () => openDay(day.date));
+      extraGroup.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openDay(day.date);
+        }
+      });
+      svg.append(extraGroup);
+    });
 
     if (index % labelStep === 0 || index === days.length - 1) {
       svg.append(svgText(point.x, margin.top + plotHeight + 24, shortDate(day.date), "chart-axis-label chart-x-label"));

@@ -670,6 +670,18 @@ button:disabled {
   stroke-width: 3;
 }
 
+.chart-point.chart-consumed-line circle {
+  stroke: var(--accent-strong);
+}
+
+.chart-point.chart-burned-line circle {
+  stroke: #4c78a8;
+}
+
+.chart-point.chart-net-line circle {
+  stroke: #7a5195;
+}
+
 .chart-point:hover circle,
 .chart-point:focus circle {
   fill: #dff1ea;
