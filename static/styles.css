@@ -592,6 +592,21 @@ button:disabled {
   border-top-color: #b16634;
 }
 
+.chart-legend-item .chart-consumed-line {
+  border-top-color: var(--accent-strong);
+  border-top-style: solid;
+}
+
+.chart-legend-item .chart-burned-line {
+  border-top-color: #4c78a8;
+  border-top-style: solid;
+}
+
+.chart-legend-item .chart-net-line {
+  border-top-color: #7a5195;
+  border-top-style: solid;
+}
+
 .calorie-chart svg {
   display: block;
   width: 100%;
@@ -615,6 +630,18 @@ button:disabled {
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.chart-consumed-line {
+  stroke: var(--accent-strong);
+}
+
+.chart-burned-line {
+  stroke: #4c78a8;
+}
+
+.chart-net-line {
+  stroke: #7a5195;
 }
 
 .chart-average-line {

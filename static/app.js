@@ -789,21 +789,24 @@ function renderCalorieChart() {
   const margin = { top: 22, right: 24, bottom: 54, left: 110 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const values = days.map(metric.value);
+  const series = chartSeries(metric);
+  const values = series.flatMap((item) => days.map(item.value));
   const goals = metric.goal ? days.map(metric.goal).filter((value) => value > 0) : [];
   const maxValue = Math.max(100, ...values, ...goals);
+  const minValue = Math.min(0, ...values);
   const stepBase = metric.unit === "kcal" ? 250 : 25;
   const yMax = Math.ceil((maxValue * 1.1) / stepBase) * stepBase;
-  const average = avg(values);
+  const yMin = Math.floor((minValue * 1.1) / stepBase) * stepBase;
+  const yRange = Math.max(stepBase, yMax - yMin);
   const svg = svgNode("svg", {
     viewBox: `0 0 ${width} ${height}`,
     role: "img",
-    "aria-label": "Kalorienverlauf im gewählten Datumsbereich"
+    "aria-label": `${metric.title} im gewählten Datumsbereich`
   });
 
   for (let i = 0; i <= 4; i++) {
-    const value = Math.round((yMax / 4) * i);
-    const y = margin.top + plotHeight - (value / yMax) * plotHeight;
+    const value = yMin + ((yRange / 4) * i);
+    const y = yForValue(value, yMin, yRange, margin, plotHeight);
     svg.append(
       svgNode("line", { x1: margin.left, y1: y, x2: width - margin.right, y2: y, class: "chart-grid" }),
       svgText(margin.left - 10, y + 4, `${fmt(value)} ${metric.unit}`, "chart-axis-label chart-y-label")
@@ -815,18 +818,21 @@ function renderCalorieChart() {
     svgNode("line", { x1: margin.left, y1: margin.top + plotHeight, x2: width - margin.right, y2: margin.top + plotHeight, class: "chart-axis" })
   );
 
-  const pointFor = (day, index) => {
-    const value = metric.value(day);
+  const pointFor = (valueGetter) => (day, index) => {
+    const value = valueGetter(day);
     const x = margin.left + (days.length === 1 ? plotWidth / 2 : (plotWidth / (days.length - 1)) * index);
-    const y = margin.top + plotHeight - (value / yMax) * plotHeight;
+    const y = yForValue(value, yMin, yRange, margin, plotHeight);
     return { x, y, value };
   };
-  const points = days.map(pointFor);
-  const avgY = margin.top + plotHeight - (average / yMax) * plotHeight;
+  const primarySeries = series[0];
+  const primaryPoints = days.map(pointFor(primarySeries.value));
+  const average = avg(days.map(primarySeries.value));
+  const avgY = yForValue(average, yMin, yRange, margin, plotHeight);
   svg.append(svgNode("line", { x1: margin.left, y1: avgY, x2: width - margin.right, y2: avgY, class: "chart-average-line" }));
 
   const legendItems = [
-    ["chart-average-line", `Durchschnitt: ${fmt(average)} ${metric.unit}`]
+    ...series.map((item) => [item.className, item.label]),
+    ["chart-average-line", `Durchschnitt ${primarySeries.label}: ${fmt(average)} ${metric.unit}`]
   ];
   if (metric.goal && goals.length > 0) {
     legendItems.push(["chart-goal-line", `Ziel: Ø ${fmt(avg(goals))} ${metric.unit}`]);
@@ -835,7 +841,7 @@ function renderCalorieChart() {
       .filter((point) => point.value > 0)
       .map((point) => {
         const x = margin.left + (plotWidth / (days.length - 1)) * point.index;
-        const y = margin.top + plotHeight - (point.value / yMax) * plotHeight;
+        const y = yForValue(point.value, yMin, yRange, margin, plotHeight);
         return `${x},${y}`;
       });
     if (goalPoints.length > 1) {
@@ -844,16 +850,22 @@ function renderCalorieChart() {
   }
   renderChartLegend(legendItems);
 
-  svg.append(svgNode("polyline", {
-    points: points.map((point) => `${point.x},${point.y}`).join(" "),
-    class: "chart-line"
-  }));
+  for (const item of series) {
+    const points = days.map(pointFor(item.value));
+    svg.append(svgNode("polyline", {
+      points: points.map((point) => `${point.x},${point.y}`).join(" "),
+      class: `chart-line ${item.className}`
+    }));
+  }
 
   const labelStep = Math.max(1, Math.ceil(days.length / 10));
   days.forEach((day, index) => {
-    const point = points[index];
+    const point = primaryPoints[index];
     const group = svgNode("g", { class: "chart-point", tabindex: "0", role: "button" });
-    group.append(svgNode("title", {}, `${formatDate(day.date)}: ${fmt(point.value)} ${metric.unit} - Tag in neuem Tab öffnen`));
+    const titleLines = series
+      .map((item) => `${item.label}: ${fmt(item.value(day))} ${metric.unit}`)
+      .join(", ");
+    group.append(svgNode("title", {}, `${formatDate(day.date)}: ${titleLines} - Tag in neuem Tab öffnen`));
     group.append(svgNode("circle", { cx: point.x, cy: point.y, r: 5 }));
     group.addEventListener("click", () => openDay(day.date));
     group.addEventListener("keydown", (event) => {
@@ -870,6 +882,39 @@ function renderCalorieChart() {
   });
 
   els.calorieChart.append(svg);
+}
+
+function yForValue(value, yMin, yRange, margin, plotHeight) {
+  return margin.top + plotHeight - ((value - yMin) / yRange) * plotHeight;
+}
+
+function chartSeries(metric) {
+  if (state.chartMetric === "energy") {
+    return [
+      {
+        label: "Konsumiert",
+        className: "chart-consumed-line",
+        value: (day) => Number(day.total?.energy ?? day.daily?.energy ?? 0)
+      },
+      {
+        label: "Verbrauch",
+        className: "chart-burned-line",
+        value: (day) => Number(day.burnedEnergy ?? 0)
+      },
+      {
+        label: "Netto",
+        className: "chart-net-line",
+        value: (day) => Number(day.netEnergy ?? Number(day.total?.energy ?? 0))
+      }
+    ];
+  }
+  return [
+    {
+      label: metric.label,
+      className: "chart-consumed-line",
+      value: metric.value
+    }
+  ];
 }
 
 function renderChartLegend(items) {
